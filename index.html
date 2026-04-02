@@ -89,7 +89,7 @@ table.t thead{position:sticky;top:0;z-index:10}
 table.t th{background:var(--xd);color:white;padding:7px 9px;font-size:11px;font-weight:600;
   white-space:normal;word-break:break-word;border-right:1px solid rgba(255,255,255,.1);
   text-align:center;vertical-align:middle;line-height:1.35}
-table.t th.th-n{white-space:nowrap}  /* Cột tên không wrap */
+table.t th.th-n{white-space:nowrap} 
 table.t th.th-n{text-align:left;min-width:250px;position:sticky;left:0;z-index:11;background:var(--xd)}
 table.t th.th-stt{width:36px}table.t th.th-id{width:62px}table.t th.th-u{width:70px}
 table.t th.th-mo{background:#1e5f3a}table.t th.th-kh{background:#3d5247}table.t th.th-gc{width:130px}
@@ -101,7 +101,6 @@ table.t tr:not(.tr-h):hover td{background:#f0fdf4}table.t tr:not(.tr-h):hover td
 table.t td.td-stt{text-align:center;color:var(--g4);font-size:11px;font-family:var(--mono)}
 table.t td.td-id{text-align:center;font-family:var(--mono);font-size:11px;color:var(--g4)}
 table.t td.td-u{text-align:center;font-size:11px;color:var(--g4)}
-/* Ô nhập - type=text, ẩn spin button */
 .os{width:100%;padding:3px 7px;border:1.5px solid transparent;border-radius:4px;font-family:var(--mono);font-size:13px;text-align:right;background:transparent;outline:none;transition:.15s}
 .os:focus{border-color:var(--xc);background:white;box-shadow:0 0 0 2px rgba(45,106,79,.1)}
 .os.has{color:var(--xd);font-weight:600}.os:disabled{background:var(--g1);color:var(--g5);cursor:default}
@@ -110,7 +109,6 @@ table.t td.td-u{text-align:center;font-size:11px;color:var(--g4)}
 .th-id{display:none!important}
 .th-ng{display:none!important}
 .td-ng{display:none!important}
-/* Kéo thả độ rộng cột */
 .resize-handle{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;z-index:1}
 .resize-handle:hover{background:rgba(255,255,255,.3)}
 table.t th{position:relative;overflow:hidden}
@@ -149,15 +147,17 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
       </div>
       <div>
         <label class="lbl">Tên đăng nhập (đơn vị)</label>
-        <input class="inp" type="text" id="inp-user" placeholder="Gõ hoặc chọn bên phải..."
-          autocomplete="off" oninput="APP.filterDVByUser(this.value)"
+        <input class="inp" type="text" id="inp-user" list="list-donvi" placeholder="Gõ hoặc chọn mũi tên..."
+          autocomplete="off" oninput="APP.filterDVByUser(this.value)" onchange="APP.filterDVByUser(this.value)"
           onkeydown="if(event.key==='Enter')UTILS.el('inp-hoten').focus()">
+        <datalist id="list-donvi"></datalist>
       </div>
       <div>
         <label class="lbl">Họ tên người nhập <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--g4)">(tuỳ chọn)</span></label>
-        <input class="inp" type="text" id="inp-hoten" placeholder="Nguyễn Văn A"
+        <input class="inp" type="text" id="inp-hoten" list="list-hoten" placeholder="Nguyễn Văn A"
           autocomplete="name"
           onkeydown="if(event.key==='Enter')UTILS.el('inp-pass').focus()">
+        <datalist id="list-hoten"></datalist>
       </div>
       <div>
         <label class="lbl">Mật khẩu</label>
@@ -172,8 +172,8 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
     </div>
     <!-- CỘT PHẢI: Chọn nhanh tài khoản -->
     <div class="lr">
-      <div class="lr-head">⚡ Chọn nhanh tài khoản</div>
-      <input class="inp-s" type="text" id="inp-s" placeholder="🔍 Lọc tên..."
+      <div class="lr-head">⚡ Chọn nhanh đơn vị</div>
+      <input class="inp-s" type="text" id="inp-s" placeholder="🔍 Lọc tên đơn vị..."
         oninput="APP.filterDV(this.value)">
       <div id="dv-list"><div class="loading"><span class="spin"></span> Đang tải...</div></div>
     </div>
@@ -230,7 +230,7 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
 
 <script>
 const APP={
-  user:null,dsTK:[],dsBang:[],dsKy:[],bangHT:null,changes:{},
+  user:null, dsTK:[], dsBang:[], dsKy:[], bangHT:null, changes:{},
 
   async init(){
     document.title=CONFIG.TEN_HE_THONG+' – '+CONFIG.TEN_CO_QUAN;
@@ -242,8 +242,39 @@ const APP={
   },
 
   async loadTK(){
-    try{this.dsTK=await DB.layDanhSachTaiKhoan();this.renderDV(this.dsTK)}
-    catch(e){UTILS.el('dv-list').innerHTML=`<div style="padding:12px;color:var(--red);font-size:12px">Lỗi: ${e.message}</div>`}
+    try{
+      this.dsTK=await DB.layDanhSachTaiKhoan();
+      this.renderDV(this.dsTK);
+
+      // Tạo danh sách dropdown (datalist) cho Đơn vị
+      const dlDonVi = UTILS.el('list-donvi');
+      if (dlDonVi) {
+        const uniqueDonVi = [...new Set(this.dsTK.map(r => r.don_vi).filter(Boolean))];
+        dlDonVi.innerHTML = uniqueDonVi.map(dv => `<option value="${dv}">`).join('');
+      }
+      
+      // Khởi tạo danh sách dropdown Họ tên ban đầu (tất cả)
+      this.capNhatListHoTen('');
+
+    }catch(e){
+      UTILS.el('dv-list').innerHTML=`<div style="padding:12px;color:var(--red);font-size:12px">Lỗi: ${e.message}</div>`;
+    }
+  },
+
+  // Hàm mới: Cập nhật danh sách thả xuống của Họ tên DỰA TRÊN Đơn vị được chọn
+  capNhatListHoTen(tenDonVi) {
+    const dlHoTen = UTILS.el('list-hoten');
+    if (!dlHoTen) return;
+    let names = [];
+    if (tenDonVi) {
+      // Chỉ lấy những người phụ trách thuộc Đơn vị được chọn
+      names = this.dsTK.filter(r => r.don_vi === tenDonVi).map(r => r.ho_ten).filter(Boolean);
+    } else {
+      // Nếu chưa chọn đơn vị, lấy tất cả
+      names = this.dsTK.map(r => r.ho_ten).filter(Boolean);
+    }
+    const uniqueNames = [...new Set(names)];
+    dlHoTen.innerHTML = uniqueNames.map(n => `<option value="${n}">`).join('');
   },
 
   renderDV(ds){
@@ -254,7 +285,6 @@ const APP={
     if(adm.length){
       h+=`<div class="grp-lbl">Quản trị</div>`;
       adm.forEach(r=>h+=this.dvRow(r));
-      // Nếu admin lẻ, thêm ô trống để grid cân
       if(adm.length%2!==0)h+='<div></div>';
     }
     if(edt.length){
@@ -264,49 +294,65 @@ const APP={
     h+='</div>';
     el.innerHTML=h;
   },
+  
   dvRow(r){
     const s=this.user?.id===r.id?'sel':'';
-    return`<div class="dv-item ${s}" onclick="APP.chonDV(${r.id})">
+    return`<div class="dv-item ${s}" onclick="APP.chonDV(${r.id})" style="padding:9px 10px;">
       <span class="chk">✓</span>
-      <div><div class="dn">${r.don_vi}</div><div class="ds">${r.ho_ten}</div></div>
+      <div class="dn" style="white-space:normal;overflow:visible;">${r.don_vi}</div>
     </div>`;
   },
+  
   filterDV(q){
     const ds=q.trim()
       ?this.dsTK.filter(r=>r.don_vi.toLowerCase().includes(q.toLowerCase())||r.ho_ten.toLowerCase().includes(q.toLowerCase()))
       :this.dsTK;
     this.renderDV(ds);
   },
-  // Lọc khi gõ vào ô user
+  
   filterDVByUser(q){
     this.filterDV(q);
-    // Nếu khớp đúng 1 tài khoản → tự chọn luôn
-    if(q.trim()){
-      const match=this.dsTK.find(r=>r.don_vi.toLowerCase()===q.trim().toLowerCase());
-      if(match&&match.id!==this.user?.id) this.chonDV(match.id,true);
+    const val = q.trim().toLowerCase();
+    if(val){
+      const match=this.dsTK.find(r=>r.don_vi.toLowerCase()===val);
+      if(match){
+        if(match.id!==this.user?.id) this.chonDV(match.id,true);
+      } else {
+        // Gõ không khớp đơn vị nào -> hiển thị lại danh sách họ tên của toàn Sở
+        this.capNhatListHoTen('');
+      }
+    } else {
+      this.capNhatListHoTen('');
     }
   },
 
   chonDV(id, skipPassFocus=false){
     this.user=this.dsTK.find(r=>r.id===id);if(!this.user)return;
-    this.renderDV(// re-render với filter hiện tại
+    this.renderDV(
       UTILS.el('inp-s').value.trim()
-        ?this.dsTK.filter(r=>r.don_vi.toLowerCase().includes(UTILS.el('inp-s').value.toLowerCase())||r.ho_ten.toLowerCase().includes(UTILS.el('inp-s').value.toLowerCase()))
+        ?this.dsTK.filter(r=>r.don_vi.toLowerCase().includes(UTILS.el('inp-s').value.toLowerCase()))
         :this.dsTK
     );
-    // Điền tên vào ô user bên trái
+    
+    // Điền tên Đơn vị
     UTILS.el('inp-user').value=this.user.don_vi;
-    // Hiện/ẩn cảnh báo mật khẩu mặc định
+
+    // Giới hạn danh sách xổ xuống của ô Họ tên CHỈ chứa người của đơn vị này
+    this.capNhatListHoTen(this.user.don_vi);
+
+    // Mặc định ĐIỀN LUÔN người đầu tiên tìm thấy của đơn vị này
+    if (this.user.ho_ten) {
+      UTILS.el('inp-hoten').value = this.user.ho_ten;
+    }
+
     const mac=!this.user.mat_khau||this.user.mat_khau===CONFIG.MAT_KHAU_MAC_DINH;
     UTILS.el('tb-mac').style.display=mac?'block':'none';
     UTILS.el('err-login').textContent='';
     if(!skipPassFocus){
       UTILS.el('inp-pass').value='';
-      // Focus vào ô họ tên nếu chưa điền, không thì focus vào mật khẩu
-      const hoTenEl=UTILS.el('inp-hoten');
+      // Vì đã auto-fill Họ tên, nhảy thẳng xuống ô Mật khẩu luôn cho nhanh
       setTimeout(()=>{
-        if(!hoTenEl.value.trim()) hoTenEl.focus();
-        else UTILS.el('inp-pass').focus();
+        UTILS.el('inp-pass').focus();
       },80);
     }
   },
@@ -318,11 +364,10 @@ const APP={
     const pass=UTILS.el('inp-pass').value;
     if(!userVal){err.textContent='Vui lòng nhập tên đăng nhập.';UTILS.el('inp-user').focus();return}
     if(!pass){err.textContent='Vui lòng nhập mật khẩu.';return}
-    // Tìm tài khoản theo don_vi (tìm đúng hoặc gần đúng)
+    
     if(!this.user||this.user.don_vi.toLowerCase()!==userVal.toLowerCase()){
       const found=this.dsTK.find(r=>r.don_vi.toLowerCase()===userVal.toLowerCase());
       if(!found){
-        // Thử tìm gần đúng
         const partial=this.dsTK.filter(r=>r.don_vi.toLowerCase().includes(userVal.toLowerCase()));
         if(partial.length===1){this.user=partial[0]}
         else{err.textContent='❌ Không tìm thấy tài khoản "'+userVal+'".';return}
@@ -332,7 +377,6 @@ const APP={
     if(pass!==mk){err.textContent='❌ Mật khẩu không đúng.';UTILS.el('inp-pass').value='';return}
     try{
       this.user=await DB.layTaiKhoanDayDu(this.user.id);
-      // Lưu họ tên người nhập (nếu có)
       const hoTen=UTILS.el('inp-hoten').value.trim();
       this.user._nguoi_nhap = hoTen || this.user.don_vi;
       UTILS.luuSession(this.user);
@@ -340,6 +384,7 @@ const APP={
       if(mk===CONFIG.MAT_KHAU_MAC_DINH)setTimeout(()=>this.moModalPass(true),700);
     }catch(e){err.textContent='Lỗi: '+e.message}
   },
+  
   dangXuat(){
     UTILS.xoaSession();this.user=null;this.bangHT=null;this.changes={};
     UTILS.el('app').classList.remove('on');UTILS.el('login').style.display='flex';
@@ -349,6 +394,7 @@ const APP={
     UTILS.el('inp-s').value='';
     UTILS.el('err-login').textContent='';
     UTILS.el('tb-mac').style.display='none';
+    this.capNhatListHoTen(''); // Reset lại list họ tên
     this.renderDV(this.dsTK);
   },
 
@@ -362,8 +408,10 @@ const APP={
     await Promise.all([this.loadBang(),this.loadKy()]);
     this.buildMenu();
   },
+  
   async loadBang(){this.dsBang=this.user.vai_tro==='admin'?await DB.layTatCaBang():await DB.layBangDuocPhep(this.user.id)},
   async loadKy(){this.dsKy=await DB.layKyHienThi()},
+  
   buildMenu(){
     const nav=UTILS.el('sb-nav');
     if(!this.dsBang.length){nav.innerHTML=`<div style="padding:10px;color:rgba(255,255,255,.4);font-size:12px">Chưa được phân công bảng nào.</div>`;return}
@@ -436,14 +484,12 @@ const APP={
         const kgc=km?`${c.id}|${km.ky_bao_cao}`:null;
         const gc=kgc?(idx[kgc]?.ghi_chu||''):'';
         const ng=kgc?(idx[kgc]?.nguon_so_lieu||''):'';
-        // STT hiển thị: dùng stt_hien_thi nếu có, không thì dùng số đếm
         const sttHT=c.stt_hien_thi!=null&&c.stt_hien_thi!==''?c.stt_hien_thi:stt;
         let tdk='';
         this.dsKy.forEach(k=>{
           const key=`${c.id}|${k.ky_bao_cao}`;
           const v=idx[key]?.gia_tri;
           const hasV=v!==null&&v!==undefined&&v!=='';
-          // Khóa ô nếu: kỳ bị khóa HOẶC dòng không cho phép nhập
           const isLocked = k.khoa_nhap_lieu || c.cho_phep_nhap===false;
           const isText=c.kieu_du_lieu==='text';
           tdk+=`<td style="padding:2px 4px"><input
@@ -471,10 +517,9 @@ const APP={
     UTILS.bat('sbar');
   },
 
-  // Paste từ Excel — xử lý đúng vùng dữ liệu
   handlePaste(e,el){
     const clip=(e.clipboardData||window.clipboardData).getData('text');
-    if(!clip.includes('\t')&&!clip.includes('\n'))return; // paste đơn, để mặc định
+    if(!clip.includes('\t')&&!clip.includes('\n'))return;
     e.preventDefault();
     const pasteRows=clip.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trimEnd().split('\n').map(r=>r.split('\t'));
     const table=el.closest('table');
@@ -488,7 +533,6 @@ const APP={
       const cells=[...tr.querySelectorAll('.os:not(:disabled)')];
       row.forEach((val,ci)=>{
         const inp=cells[startColIdx+ci];if(!inp)return;
-        // Làm sạch số: bỏ dấu chấm phân cách ngàn, đổi phẩy thành chấm
         const raw=val.trim().replace(/\./g,'').replace(',','.');
         const num=parseFloat(raw);
         inp.value=isNaN(num)?(val.trim()||''):num;
@@ -527,7 +571,6 @@ const APP={
 
   huyThayDoi(){this.changes={};UTILS.tat('sbar');if(this.bangHT)this.moNhap(this.bangHT)},
 
-  // Kéo thả độ rộng cột
   _resizing: null,
   startResize(e, maKy) {
     e.preventDefault(); e.stopPropagation();
@@ -543,7 +586,6 @@ const APP={
     const newW = Math.max(60, r.startW + e.clientX - r.startX);
     r.th.style.minWidth = newW + 'px';
     r.th.style.width    = newW + 'px';
-    // Cập nhật tất cả ô trong cột đó
     const idx = [...r.th.parentElement.children].indexOf(r.th);
     document.querySelectorAll(`table.t tbody tr`).forEach(tr=>{
       if(tr.children[idx]) tr.children[idx].style.width = newW + 'px';
@@ -555,9 +597,7 @@ const APP={
     document.removeEventListener('mouseup', APP._endResize);
     const newW = Math.max(60, r.startW + e.clientX - r.startX);
     APP._resizing = null;
-    // Lưu vào DB
     DB.luuDoRongKy(r.maKy, newW).then(()=>UTILS.toast('📐 Đã lưu độ rộng cột','ok')).catch(()=>{});
-    // Cập nhật trong dsKy cache
     const k = APP.dsKy.find(x=>x.ky_bao_cao===r.maKy);
     if(k) k.do_rong_cot = newW;
   },
@@ -589,23 +629,18 @@ const APP={
     const b=this.dsBang.find(x=>x.bang===this.bangHT);
     const ct=await DB.layChiTieuTheoBang(this.bangHT);
 
-    // Tải dữ liệu hiện có nếu cần
     let idx={};
     if(coData){
       const dl=await DB.layDuLieu(this.bangHT,this.dsKy.map(k=>k.ky_bao_cao));
       dl.forEach(r=>{idx[r.id_chi_tieu+'|'+r.ky_bao_cao]=r});
     }
 
-    // Header dòng ẩn: mã kỳ (để upload nhận ra) — sẽ ẩn dòng này
-    const headersMaKy=['id_chi_tieu','ten_chi_tieu','don_vi',
-      ...this.dsKy.map(k=>k.ky_bao_cao),'ghi_chu','nguon_so_lieu'];
-    // Header hiển thị: tên kỳ đầy đủ
-    const headersHienThi=['STT','Tên chỉ tiêu','ĐVT',
-      ...this.dsKy.map(k=>k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)),'Ghi chú',''];
+    const headersMaKy=['id_chi_tieu','ten_chi_tieu','don_vi',...this.dsKy.map(k=>k.ky_bao_cao),'ghi_chu','nguon_so_lieu'];
+    const headersHienThi=['STT','Tên chỉ tiêu','ĐVT',...this.dsKy.map(k=>k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)),'Ghi chú',''];
 
     let stt=0;
-    const rowsMaKy=[headersMaKy]; // dòng ẩn chứa mã kỳ
-    const rowsHienThi=[headersHienThi]; // dòng hiển thị
+    const rowsMaKy=[headersMaKy];
+    const rowsHienThi=[headersHienThi];
     ct.forEach(c=>{
       const isLocked=c.la_tieu_de||c.cho_phep_nhap===false;
       if(!isLocked)stt++;
@@ -620,31 +655,26 @@ const APP={
       rowsHienThi.push([sttHT,c.chi_tieu.trim(),c.don_vi||'',...kyVals,gc,'']);
     });
 
-    // Tạo workbook — 1 sheet, dòng 1 ẩn (mã kỳ), dòng 2 là header hiển thị
     const wb=XLSX.utils.book_new();
-    const allRows=[...rowsMaKy,...rowsHienThi.slice(1),...rowsMaKy.slice(1).map(()=>[])]; // placeholder
-    // Thực ra dùng cách đơn giản hơn: sheet có dòng 1=mã, dòng 2=tên, dòng 3+=dữ liệu
     const sheetData=[headersMaKy, headersHienThi, ...rowsMaKy.slice(1)];
     const ws=XLSX.utils.aoa_to_sheet(sheetData);
     const range=XLSX.utils.decode_range(ws['!ref']);
     const fixedCols=3; const kyCols=this.dsKy.length;
 
     ws['!cols']=[{wch:0.1},{wch:45},{wch:10},...this.dsKy.map(k=>({wch:Math.round((k.do_rong_cot||120)/7)})),{wch:20},{wch:0.1}];
-    // Ẩn dòng 1 (mã kỳ)
     ws['!rows']=[{hidden:true}];
 
     for(let R=0;R<=range.e.r;R++){
       for(let C=0;C<=range.e.c;C++){
         const addr=XLSX.utils.encode_cell({r:R,c:C});
         if(!ws[addr])ws[addr]={v:'',t:'s'};
-        const isHeaderRow=R<=1; // dòng 0=mã ẩn, dòng 1=tên hiển thị
+        const isHeaderRow=R<=1;
         const isFixedCol=C<fixedCols||C>=fixedCols+kyCols;
         const ctRow=R>1?ct[R-2]:null;
         const isLockedRow=ctRow&&(ctRow.la_tieu_de||ctRow.cho_phep_nhap===false);
         const isLockedKy=!isHeaderRow&&!isFixedCol&&this.dsKy[C-fixedCols]?.khoa_nhap_lieu;
         const locked=isHeaderRow||isFixedCol||isLockedRow||isLockedKy;
         ws[addr].s={
-          font:{bold:isHeaderRow||(ctRow?.la_tieu_de), color:{rgb:isHeaderRow&&R===0?'FFFFFF':'000000'}},
           fill:{fgColor:{rgb: R===1?'1B4332': isLockedRow?'F0F0F0': isFixedCol?'EAEDED': isLockedKy?'E0E0E0':'FFFFFF'}},
           font:{bold:R===1||(ctRow?.la_tieu_de), color:{rgb:R===1?'FFFFFF':'000000'}},
           alignment:{vertical:'center', wrapText:false},
@@ -657,7 +687,6 @@ const APP={
     UTILS.toast(coData?'📊 Đã xuất Excel kèm dữ liệu!':'📥 Đã xuất Excel mẫu trống!','ok');
   },
 
-  // Upload Excel → đọc dữ liệu → upsert vào DB
   async uploadExcel(input){
     const file=input.files[0];if(!file)return;
     if(typeof XLSX==='undefined'){UTILS.toast('Thiếu thư viện XLSX','er');return}
@@ -670,24 +699,19 @@ const APP={
         const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         if(raw.length<2){UTILS.toast('File Excel không có dữ liệu','er');return}
 
-        // Dòng 1: headers — tìm cột mã kỳ (bắt đầu từ cột D trở đi)
-        // Format header: "id_chi_tieu","ten_chi_tieu","don_vi","[ma_ky1]","[ma_ky2]",...,"ghi_chu","nguon_so_lieu"
         const headers=raw[0].map(h=>String(h||'').trim());
         const idxId=headers.indexOf('id_chi_tieu');
         if(idxId===-1){UTILS.toast('Không tìm thấy cột id_chi_tieu','er');return}
 
-        // Các cột kỳ báo cáo = cột không phải id/ten/don_vi/ghi_chu/nguon
         const fixedCols=new Set(['id_chi_tieu','ten_chi_tieu','don_vi','ghi_chu','nguon_so_lieu','']);
         const kyHeaders=headers.map((h,i)=>({h,i})).filter(x=>!fixedCols.has(x.h)&&x.i>idxId);
         const gcIdx=headers.indexOf('ghi_chu');
         const ngIdx=headers.indexOf('nguon_so_lieu');
 
-        // Kiểm tra kỳ hợp lệ (phải có trong dsKy hiện tại)
         const maKyHienThi=this.dsKy.map(k=>k.ky_bao_cao);
         const kyHopLe=kyHeaders.filter(x=>maKyHienThi.includes(x.h));
         if(!kyHopLe.length){UTILS.toast('Không tìm thấy kỳ báo cáo hợp lệ trong file','er');return}
 
-        // Đọc từng dòng dữ liệu
         const rows=[];
         for(let ri=1;ri<raw.length;ri++){
           const row=raw[ri];
@@ -696,10 +720,10 @@ const APP={
 
           kyHopLe.forEach(ky=>{
             const ky_info=this.dsKy.find(k=>k.ky_bao_cao===ky.h);
-            if(ky_info?.khoa_nhap_lieu)return; // bỏ qua kỳ đã khóa
+            if(ky_info?.khoa_nhap_lieu)return;
 
             const val=String(row[ky.i]||'').trim();
-            if(val==='')return; // bỏ qua ô trống
+            if(val==='')return;
 
             const raw_n=val.replace(/\./g,'').replace(',','.');
             const num=parseFloat(raw_n);
@@ -721,8 +745,8 @@ const APP={
 
         await DB.luuDuLieu(this.bangHT,rows);
         UTILS.toast(`✅ Đã import ${rows.length} ô dữ liệu từ Excel!`,'ok');
-        input.value=''; // reset input
-        await this.moNhap(this.bangHT); // reload bảng
+        input.value=''; 
+        await this.moNhap(this.bangHT); 
       }catch(err){
         UTILS.toast('❌ Lỗi đọc file: '+err.message,'er');
         console.error(err);
@@ -737,6 +761,7 @@ const APP={
     UTILS.el('mp-sub').textContent=batBuoc?'⚠️ Đang dùng mật khẩu mặc định. Vui lòng đổi ngay!':'Mật khẩu mới tối thiểu 4 ký tự.';
     UTILS.moModal('modal-pass');
   },
+  
   async luuPass(){
     const cu=UTILS.el('p-cu').value,moi=UTILS.el('p-moi').value,moi2=UTILS.el('p-moi2').value;
     const err=UTILS.el('err-pass');err.textContent='';
@@ -750,6 +775,7 @@ const APP={
       UTILS.dongModal('modal-pass');UTILS.toast('✅ Đổi mật khẩu thành công!','ok');
     }catch(e){err.textContent='Lỗi: '+e.message}
   },
+  
   moAdmin(){window.open('admin.html','_blank')},
 };
 window.addEventListener('load',()=>APP.init());
