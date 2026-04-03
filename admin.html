@@ -285,7 +285,7 @@ function renderKyBaoCao() {
   }
 
   const cols = [
-    { key:'thu_tu_hien_thi', label:'Thứ tự', w:'90px' },
+    { key:'thu_tu_hien_thi', label:'Thứ tự', w:'100px' },
     { key:'ky_bao_cao',      label:'Mã kỳ',  w:'160px' },
     { key:'ky_bao_cao_tieu_de', label:'Tên kỳ', w:'' },
     { key:'thang_bao_cao',   label:'Tháng',  w:'60px' },
@@ -302,7 +302,7 @@ function renderKyBaoCao() {
   const tbody = ds.map(k => `<tr>
     <td style="text-align:center;padding:4px 8px">
       <input class="num-inp" type="number" min="1" value="${k.thu_tu_hien_thi||''}" placeholder="--"
-        style="width:70px"
+        style="width:90px"
         onchange="capNhatKyField('${k.ky_bao_cao}','thu_tu_hien_thi',this.value===''?null:parseInt(this.value))">
     </td>
     <td class="mono">${k.ky_bao_cao}</td>
