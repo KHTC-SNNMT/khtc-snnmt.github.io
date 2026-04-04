@@ -21,8 +21,9 @@ const DB = {
   async layTatCaTaiKhoan() {
     const { data, error } = await sb
       .from(CONFIG.BANG.TAI_KHOAN)
-      .select('*').order('vai_tro').order('don_vi');
-      .neq('don_vi', 'mật khẩu cấp 2')
+      .select('*')
+      .neq('an_khoi_admin', true)
+      .order('vai_tro').order('don_vi');
     if (error) throw error;
     return data || [];
   },
