@@ -22,6 +22,7 @@ const DB = {
     const { data, error } = await sb
       .from(CONFIG.BANG.TAI_KHOAN)
       .select('*').order('vai_tro').order('don_vi');
+      .neq('don_vi', 'mật khẩu cấp 2')
     if (error) throw error;
     return data || [];
   },
