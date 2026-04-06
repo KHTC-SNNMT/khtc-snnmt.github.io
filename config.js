@@ -30,5 +30,5 @@ const CONFIG = {
 CONFIG.GANTT_SOURCES = {
   'GANTT_TIEN_DO': 'https://docs.google.com/spreadsheets/d/1RyZFtV-rXnRT9hbS8xd2pMuUKD8CBDiPz9rUKlOINgk/htmlembed?widget=true&headers=false',
   'GANTT_DU_AN_2': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIqh2EbWCVMI0FX-THKaOnGpbgwWd7SwgLkgsKUYkqif1ZTaL29lMqY1dWmSSU-lOArab1Ud7oP-PE/pubhtml?gid=0&single=true',
-  'GANTT_NNDT': 'https://docs.google.com/spreadsheets/d/15U52wa_s-J-cBjeXPtV2Ta89VPkif-2oAiYcBnEdHLw/edit?usp=sharing'
+  'GANTT_NNDT': 'https://docs.google.com/spreadsheets/d/15U52wa_s-J-cBjeXPtV2Ta89VPkif-2oAiYcBnEdHLw/htmlembed?widget=true&headers=false'
 };
