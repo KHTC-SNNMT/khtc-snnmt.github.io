@@ -25,10 +25,8 @@ const CONFIG = {
     CSDL_PREFIX:     'csdl_',   // + maBang.toLowerCase() → csdl_bang_01, csdl_bang_02...
   },
 };
-// Thêm vào cuối file config.js
-CONFIG.GANTT_URL = "https://docs.google.com/spreadsheets/d/1Z13uBmPCWy-GE1Q4TsYYEhGsqrKT0uP78DoSqhIs9WI/htmlembed?widget=true&headers=false";
-CONFIG.GANTT_MA_BANG = "GANTT_TIEN_DO"; // Mã này dùng để phân quyền trong Admin
-// Danh sách các sơ đồ Gantt (Bạn có thể thêm không giới hạn dòng ở đây)
+
+// Danh sách các tập tin google sheet (Bạn có thể thêm không giới hạn dòng ở đây)
 CONFIG.GANTT_SOURCES = {
   'GANTT_TIEN_DO': 'https://docs.google.com/spreadsheets/d/1RyZFtV-rXnRT9hbS8xd2pMuUKD8CBDiPz9rUKlOINgk/htmlembed?widget=true&headers=false',
   'GANTT_DU_AN_2': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIqh2EbWCVMI0FX-THKaOnGpbgwWd7SwgLkgsKUYkqif1ZTaL29lMqY1dWmSSU-lOArab1Ud7oP-PE/pubhtml?gid=0&single=true',
