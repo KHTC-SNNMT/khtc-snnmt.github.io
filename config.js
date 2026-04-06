@@ -26,9 +26,9 @@ const CONFIG = {
   },
 };
 
-// Danh sách các tập tin google sheet (Bạn có thể thêm không giới hạn dòng ở đây)
+// Danh sách các tập tin google sheet: 'Mã bảng': 'URL google sheet' (Bạn có thể thêm không giới hạn dòng ở đây)
 CONFIG.GANTT_SOURCES = {
   'GANTT_TIEN_DO': 'https://docs.google.com/spreadsheets/d/1RyZFtV-rXnRT9hbS8xd2pMuUKD8CBDiPz9rUKlOINgk/htmlembed?widget=true&headers=false',
   'GANTT_DU_AN_2': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQIqh2EbWCVMI0FX-THKaOnGpbgwWd7SwgLkgsKUYkqif1ZTaL29lMqY1dWmSSU-lOArab1Ud7oP-PE/pubhtml?gid=0&single=true',
-  'GANTT_LAM_NGHIEP': 'LINK_FILE_GSHEET_THU_3_CUA_BAN'
+  'GANTT_NNDT': 'https://docs.google.com/spreadsheets/d/15U52wa_s-J-cBjeXPtV2Ta89VPkif-2oAiYcBnEdHLw/edit?usp=sharing'
 };
