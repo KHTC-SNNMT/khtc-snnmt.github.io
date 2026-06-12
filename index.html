@@ -244,6 +244,7 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
     <div class="topbar">
       <button class="hamburger" id="hamburger" onclick="APP.toggleSidebar()">☰</button>
       <div class="topbar-t" id="topbar-t">Chọn bảng báo cáo bên trái<span class="topbar-s" id="topbar-s"></span></div>
+      <div id="topbar-actions" style="display:flex;align-items:center;gap:6px;flex-shrink:0"></div>
     </div>
     <div class="content" id="content">
       <div class="empty"><span class="i">📋</span><span>Chọn bảng báo cáo bên trái để bắt đầu nhập liệu</span></div>
@@ -452,34 +453,31 @@ const APP={
     UTILS.el('ni-'+maBang)?.classList.add('act');
     const b=this.dsBang.find(x=>x.bang===maBang);
     UTILS.el('topbar-t').innerHTML=`${b?.ten_bang||maBang}<span class="topbar-s"> / ${b?.don_vi_bao_cao||''}</span>`;
+
     if(!this.dsKy.length){
       UTILS.el('content').innerHTML=`<div class="empty"><span class="i">📅</span><span>Chưa có kỳ báo cáo nào được mở.<br>Vào trang quản trị để thêm kỳ báo cáo.</span></div>`;return;
     }
     const ct0=await DB.layChiTieuTheoBang(maBang);
     const daNhap=ct0.filter(c=>!c.la_tieu_de);
     const tatCaKhoa=daNhap.length>0&&daNhap.every(c=>c.cho_phep_nhap===false);
-
     const gsUrl=b?.gsheet_url||'';
     const coGSheet=!!gsUrl;
+    const _ta=UTILS.el('topbar-actions');
+    if(_ta){
+      let _btnExcel='';
+      if(!coGSheet){
+        _btnExcel='<button class="btn-sm gr" onclick="APP.xuatExcel(false)">📥 Excel mẫu trống</button>'
+          +'<button class="btn-sm gr" onclick="APP.xuatExcel(true)">📊 Excel + dữ liệu</button>'
+          +'<label class="btn-sm gr" style="cursor:pointer">📤 Upload Excel'
+          +'<input type="file" id="inp-upload" accept=".xlsx,.xls" style="display:none" onchange="APP.uploadExcel(this)">'
+          +'</label>';
+      }
+      const _btnGui='<button id="btn-gui" class="btn-sm send'+(tatCaKhoa?' done':'')+'" onclick="APP.guiBaoCao()" '+(tatCaKhoa?'disabled':'')+'>'+( tatCaKhoa?'✅ Đã gửi':'📨 Gửi báo cáo')+'</button>';
+      _ta.innerHTML=_btnExcel+_btnGui;
+    }
 
     UTILS.el('content').innerHTML=`
-      <div class="nl-bar">
-        <span style="font-size:13px;font-weight:700;color:var(--xd)">📋 ${b?.ten_bang}</span>
-        <span style="font-size:11px;color:var(--g4)">${b?.don_vi_bao_cao||''}</span>
-        <div class="sp"></div>
-        ${this.dsKy.map(k=>`<span class="ky-tag ${k.khoa_nhap_lieu?'khoa':'mo'}">${k.khoa_nhap_lieu?'🔒':'🔓'} T${k.thang_bao_cao}/${k.nam_bao_cao}</span>`).join('')}
-        ${coGSheet?'':`<button class="btn-sm gr" onclick="APP.xuatExcel(false)">📥 Excel mẫu trống</button>
-          <button class="btn-sm gr" onclick="APP.xuatExcel(true)">📊 Excel + dữ liệu</button>
-          <label class="btn-sm gr" style="cursor:pointer">
-            📤 Upload Excel
-            <input type="file" id="inp-upload" accept=".xlsx,.xls" style="display:none" onchange="APP.uploadExcel(this)">
-          </label>`}
-        <button id="btn-gui" class="btn-sm send${tatCaKhoa?' done':''}"
-          onclick="APP.guiBaoCao()"
-          ${tatCaKhoa?'disabled':''}>
-          ${tatCaKhoa?'✅ Đã gửi':'📨 Gửi báo cáo'}
-        </button>
-      </div>
+
       <div class="tieu-de-bang${coGSheet?' hidden':''}">
         <div class="d1">${b?.tieu_de_chinh||b?.ten_bang?.toUpperCase()||''}</div>
         <div class="d2">${b?.tieu_de_phu||'(Đính kèm Công văn số …. của ….)'}</div>
@@ -537,7 +535,7 @@ const APP={
       const w=k.do_rong_cot||120;
       th+=`<th class="${k.khoa_nhap_lieu?'th-kh':'th-mo'}" style="min-width:${w}px;width:${w}px" data-ky="${k.ky_bao_cao}" title="${k.ky_bao_cao}">
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-right:4px">
-          <span style="font-size:10px;opacity:.8">${k.khoa_nhap_lieu?'🔒':'🔓'}</span>
+          ${k.khoa_nhap_lieu?'<span style="font-size:12px;line-height:1;opacity:.85">🔒</span>':''}
           <span>${k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)}</span>
         </div>
         <div class="resize-handle" onmousedown="APP.startResize(event,'${k.ky_bao_cao}')"></div>
@@ -568,7 +566,7 @@ const APP={
             type="text" ${isText?'':'inputmode="decimal"'}
             class="os${hasV?' has':''}${isLocked?' locked':''}"
             data-key="${key}" data-id="${c.id}" data-ky="${k.ky_bao_cao}"
-            value="${hasV?v:''}"
+            value="${hasV?(c.kieu_du_lieu==='text'?v:UTILS.formatSo(v)):''}"
             ${isLocked?'disabled':''}
             style="text-align:${isText?'left':'right'}"
             onchange="APP.ghiNhan(this)"
@@ -588,9 +586,19 @@ const APP={
     document.querySelectorAll('table.t tbody tr.tr-focused').forEach(r=>r.classList.remove('tr-focused'));
     const tr=el.closest('tr');
     if(tr)tr.classList.add('tr-focused');
+    // Khi focus ô số: chuyển về số thô để dễ nhập
+    if(el.classList.contains('os')&&el.inputMode==='decimal'){
+      const raw=UTILS.parseSo(el.value);
+      el.value=raw!==null?String(raw):'';
+      setTimeout(()=>el.select(),0);
+    }
   },
   clearFocusRow(el){
-    // Dùng setTimeout để tránh xóa quá sớm khi nhảy sang ô khác trong cùng hàng
+    // Format số khi rời ô
+    if(el.classList.contains('os')&&el.inputMode==='decimal'){
+      const raw=UTILS.parseSo(el.value);
+      el.value=raw!==null?UTILS.formatSo(raw):'';
+    }
     setTimeout(()=>{
       if(!document.activeElement?.closest('tr.tr-focused'))
         document.querySelectorAll('table.t tbody tr.tr-focused').forEach(r=>r.classList.remove('tr-focused'));
