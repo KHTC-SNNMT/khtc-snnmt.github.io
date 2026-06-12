@@ -697,7 +697,11 @@ const APP={
       const loai=parts[0],id=parts[1],ky=parts.slice(2).join('|');
       const rk=`${id}|${ky}`;
       if(!rows[rk])rows[rk]={id_chi_tieu:id,ky_bao_cao:ky,nguoi_nhap:this.user._nguoi_nhap||this.user.email||this.user.don_vi,thoi_gian_nhap:new Date().toISOString()};
-      if(loai==='so'){const parsed=UTILS.parseSo(v);if(parsed!==null)rows[rk].gia_tri=parsed;}
+      if(loai==='so'){
+        // v==='' nghĩa là người dùng xóa trắng → lưu null để xóa số cũ
+        // v!=='' → parse bình thường, nếu không phải số hợp lệ thì cũng lưu null
+        rows[rk].gia_tri = (v===''||v===null||v===undefined) ? null : UTILS.parseSo(v);
+      }
       if(loai==='gc')rows[rk].ghi_chu=v;
       if(loai==='ng')rows[rk].nguon_so_lieu=v;
     }
