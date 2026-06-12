@@ -244,6 +244,7 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
     <div class="topbar">
       <button class="hamburger" id="hamburger" onclick="APP.toggleSidebar()">☰</button>
       <div class="topbar-t" id="topbar-t">Chọn bảng báo cáo bên trái<span class="topbar-s" id="topbar-s"></span></div>
+      <div id="topbar-actions" style="display:flex;align-items:center;gap:6px;flex-shrink:0"></div>
     </div>
     <div class="content" id="content">
       <div class="empty"><span class="i">📋</span><span>Chọn bảng báo cáo bên trái để bắt đầu nhập liệu</span></div>
@@ -277,6 +278,8 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
 <script>
 const APP={
   user:null, dsTK:[], dsBang:[], dsKy:[], bangHT:null, changes:{},
+  _icoMo:`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"16\" viewBox=\"0 0 50 68\" style=\"display:inline-block;vertical-align:middle\"><rect x=\"0\" y=\"30\" width=\"50\" height=\"38\" rx=\"5\" fill=\"#2d6a4f\"/><circle cx=\"25\" cy=\"46\" r=\"6\" fill=\"#d8f3dc\"/><rect x=\"22\" y=\"46\" width=\"6\" height=\"10\" rx=\"2\" fill=\"#d8f3dc\"/><path d=\"M 13.7 10.7 A 16 16 0 1 1 36.3 10.7\" fill=\"none\" stroke=\"#52b788\" stroke-width=\"7\" stroke-linecap=\"round\"/></svg>`,
+  _icoKhoa:`<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"16\" viewBox=\"0 0 50 68\" style=\"display:inline-block;vertical-align:middle\"><rect x=\"0\" y=\"30\" width=\"50\" height=\"38\" rx=\"5\" fill=\"#7a9485\"/><circle cx=\"25\" cy=\"46\" r=\"6\" fill=\"#e4e9e6\"/><rect x=\"22\" y=\"46\" width=\"6\" height=\"10\" rx=\"2\" fill=\"#e4e9e6\"/><path d=\"M 9 30 L 9 18 A 16 16 0 0 1 41 18 L 41 30\" fill=\"none\" stroke=\"#3d5247\" stroke-width=\"7\" stroke-linecap=\"round\"/></svg>`,
 
   async init(){
     document.title=CONFIG.TEN_HE_THONG+' – '+CONFIG.TEN_CO_QUAN;
@@ -452,6 +455,15 @@ const APP={
     UTILS.el('ni-'+maBang)?.classList.add('act');
     const b=this.dsBang.find(x=>x.bang===maBang);
     UTILS.el('topbar-t').innerHTML=`${b?.ten_bang||maBang}<span class="topbar-s"> / ${b?.don_vi_bao_cao||''}</span>`;
+    const _ta=UTILS.el('topbar-actions');
+    if(_ta){
+      const _btnExcel=coGSheet?'':`<button class="btn-sm gr" onclick="APP.xuatExcel(false)">📥 Excel mẫu trống</button>
+        <button class="btn-sm gr" onclick="APP.xuatExcel(true)">📊 Excel + dữ liệu</button>
+        <label class="btn-sm gr" style="cursor:pointer">📤 Upload Excel
+          <input type="file" id="inp-upload" accept=".xlsx,.xls" style="display:none" onchange="APP.uploadExcel(this)">
+        </label>`;
+      _ta.innerHTML=_btnExcel+`<button id="btn-gui" class="btn-sm send${tatCaKhoa?' done':''}" onclick="APP.guiBaoCao()" ${tatCaKhoa?'disabled':''}>${tatCaKhoa?'✅ Đã gửi':'📨 Gửi báo cáo'}</button>`;
+    }
     if(!this.dsKy.length){
       UTILS.el('content').innerHTML=`<div class="empty"><span class="i">📅</span><span>Chưa có kỳ báo cáo nào được mở.<br>Vào trang quản trị để thêm kỳ báo cáo.</span></div>`;return;
     }
@@ -463,23 +475,7 @@ const APP={
     const coGSheet=!!gsUrl;
 
     UTILS.el('content').innerHTML=`
-      <div class="nl-bar">
-        <span style="font-size:13px;font-weight:700;color:var(--xd)">📋 ${b?.ten_bang}</span>
-        <span style="font-size:11px;color:var(--g4)">${b?.don_vi_bao_cao||''}</span>
-        <div class="sp"></div>
-        ${this.dsKy.map(k=>`<span class="ky-tag ${k.khoa_nhap_lieu?'khoa':'mo'}">${k.khoa_nhap_lieu?'🔒':'🔓'} T${k.thang_bao_cao}/${k.nam_bao_cao}</span>`).join('')}
-        ${coGSheet?'':`<button class="btn-sm gr" onclick="APP.xuatExcel(false)">📥 Excel mẫu trống</button>
-          <button class="btn-sm gr" onclick="APP.xuatExcel(true)">📊 Excel + dữ liệu</button>
-          <label class="btn-sm gr" style="cursor:pointer">
-            📤 Upload Excel
-            <input type="file" id="inp-upload" accept=".xlsx,.xls" style="display:none" onchange="APP.uploadExcel(this)">
-          </label>`}
-        <button id="btn-gui" class="btn-sm send${tatCaKhoa?' done':''}"
-          onclick="APP.guiBaoCao()"
-          ${tatCaKhoa?'disabled':''}>
-          ${tatCaKhoa?'✅ Đã gửi':'📨 Gửi báo cáo'}
-        </button>
-      </div>
+
       <div class="tieu-de-bang${coGSheet?' hidden':''}">
         <div class="d1">${b?.tieu_de_chinh||b?.ten_bang?.toUpperCase()||''}</div>
         <div class="d2">${b?.tieu_de_phu||'(Đính kèm Công văn số …. của ….)'}</div>
@@ -537,7 +533,7 @@ const APP={
       const w=k.do_rong_cot||120;
       th+=`<th class="${k.khoa_nhap_lieu?'th-kh':'th-mo'}" style="min-width:${w}px;width:${w}px" data-ky="${k.ky_bao_cao}" title="${k.ky_bao_cao}">
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-right:4px">
-          <span style="font-size:10px;opacity:.8">${k.khoa_nhap_lieu?'🔒':'🔓'}</span>
+          ${k.khoa_nhap_lieu?this._icoKhoa:this._icoMo}
           <span>${k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)}</span>
         </div>
         <div class="resize-handle" onmousedown="APP.startResize(event,'${k.ky_bao_cao}')"></div>
