@@ -448,7 +448,7 @@ const APP={
   },
 
   async moNhap(maBang){
-    this.bangHT=maBang;this.changes={};UTILS.tat('sbar');
+    this.bangHT=maBang;this.changes={};UTILS.tat('sbar');const _bl1=UTILS.el('btn-luu-top');if(_bl1){_bl1.style.background='#c5d0c9';_bl1.style.color='#3d5247';_bl1.style.cursor='default';}
     document.querySelectorAll('.ni').forEach(e=>e.classList.remove('act'));
     UTILS.el('ni-'+maBang)?.classList.add('act');
     const b=this.dsBang.find(x=>x.bang===maBang);
@@ -473,7 +473,8 @@ const APP={
           +'</label>';
       }
       const _btnGui='<button id="btn-gui" class="btn-sm send'+(tatCaKhoa?' done':'')+'" onclick="APP.guiBaoCao()" '+(tatCaKhoa?'disabled':'')+'>'+( tatCaKhoa?'✅ Đã gửi':'📨 Gửi báo cáo')+'</button>';
-      _ta.innerHTML=_btnExcel+_btnGui;
+      const _btnLuu='<button id="btn-luu-top" class="btn-sm" style="background:#c5d0c9;color:#3d5247;cursor:default" onclick="APP.luuDuLieu()">💾 Lưu</button>';
+      _ta.innerHTML=_btnExcel+_btnLuu+_btnGui;
     }
 
     UTILS.el('content').innerHTML=`
@@ -610,6 +611,7 @@ const APP={
     this.changes[`${loai||'so'}|${key}`]=el.value;
     UTILS.el('cnt').textContent=Object.keys(this.changes).length;
     UTILS.bat('sbar');
+    const _bl=UTILS.el('btn-luu-top');if(_bl){_bl.style.background='#2d6a4f';_bl.style.color='#fff';_bl.style.cursor='pointer';}
   },
 
   handlePaste(e,el){
@@ -664,7 +666,7 @@ const APP={
     }
   },
 
-  huyThayDoi(){this.changes={};UTILS.tat('sbar');if(this.bangHT)this.moNhap(this.bangHT)},
+  huyThayDoi(){this.changes={};UTILS.tat('sbar');const _bl2=UTILS.el('btn-luu-top');if(_bl2){_bl2.style.background='#c5d0c9';_bl2.style.color='#3d5247';_bl2.style.cursor='default';}if(this.bangHT)this.moNhap(this.bangHT)},
 
   _resizing:null,
   startResize(e,maKy){
@@ -716,7 +718,7 @@ const APP={
     try{
       await DB.luuDuLieu(this.bangHT,Object.values(rows));
       UTILS.toast(`✅ Đã lưu ${Object.values(rows).length} dòng!`,'ok');
-      this.changes={};UTILS.tat('sbar');
+      this.changes={};UTILS.tat('sbar');const _bl3=UTILS.el('btn-luu-top');if(_bl3){_bl3.style.background='#c5d0c9';_bl3.style.color='#3d5247';_bl3.style.cursor='default';}
       document.querySelectorAll('.os').forEach(i=>i.classList.toggle('has',i.value!==''));
     }catch(e){UTILS.toast('❌ Lỗi: '+e.message,'er');console.error('luuDuLieu:',e)}
     nut.textContent='💾 Lưu';nut.disabled=false;
