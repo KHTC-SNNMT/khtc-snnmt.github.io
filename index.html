@@ -183,12 +183,14 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
 .welcome-ico{width:74px;height:74px;margin:6px auto 4px;border-radius:20px;background:linear-gradient(135deg,var(--xp),#b7e4c7);display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 4px 14px rgba(82,183,136,.28)}
 .welcome-card h2{font-size:21px;font-weight:700;color:var(--xd);line-height:1.35;margin-top:6px}
 .welcome-card .arrow-hint{display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:13px;font-weight:600;color:var(--xc);background:var(--xp);padding:7px 15px;border-radius:20px}
-.welcome-sep{display:flex;align-items:center;gap:12px;width:260px;margin:20px 0 4px;color:var(--g4);font-size:12px;font-weight:600}
-.welcome-sep::before,.welcome-sep::after{content:"";flex:1;height:1px;background:var(--g2)}
-.btn-xembc{display:inline-flex;align-items:center;gap:9px;padding:13px 30px;background:linear-gradient(135deg,var(--xd),var(--xc));color:white;border:none;border-radius:11px;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 4px 16px rgba(27,67,50,.24)}
+.welcome-sep{display:flex;align-items:center;gap:14px;width:420px;max-width:80vw;margin:8px 0;color:var(--g4);font-size:14px;font-weight:700;letter-spacing:2px}
+.welcome-sep::before,.welcome-sep::after{content:"";flex:1;height:2px;background:var(--g2);border-radius:2px}
+.welcome-card.card2{padding:30px 46px}
+.welcome-card.card2 .ico2{width:60px;height:60px;font-size:30px;border-radius:16px;margin-bottom:12px}
+.btn-xembc{display:inline-flex;align-items:center;gap:10px;padding:15px 44px;background:linear-gradient(135deg,var(--xd),var(--xc));color:white;border:none;border-radius:12px;font-family:var(--font);font-size:17px;font-weight:700;cursor:pointer;transition:.2s;box-shadow:0 4px 16px rgba(27,67,50,.24)}
 .btn-xembc:hover{transform:translateY(-2px);box-shadow:0 7px 22px rgba(27,67,50,.32)}
-.btn-xembc .ic{font-size:19px}
-.btn-xembc-sub{font-size:12px;color:var(--g4);margin-top:9px}
+.btn-xembc .ic{font-size:21px}
+.btn-xembc-sub{font-size:13px;color:var(--g4);margin-top:12px}
 .spin{width:17px;height:17px;border:2px solid var(--g2);border-top-color:var(--xc);border-radius:50%;animation:sp .6s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}.loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:38px;color:var(--g4);font-size:13px}
 </style>
@@ -264,12 +266,15 @@ table.t tr.tr-locked td.td-n{background:#fafafa;color:var(--g4)}
       <div class="welcome">
         <div class="welcome-card">
           <div class="welcome-ico">📋</div>
-          <h2>Chọn bảng báo cáo ở thanh bên trái<br>để bắt đầu nhập liệu</h2>
+          <h2>Đơn vị chọn bảng báo cáo ở thanh bên trái để bắt đầu nhập liệu</h2>
           <div class="arrow-hint">← Danh sách bảng báo cáo nằm bên trái</div>
         </div>
         <div class="welcome-sep">HOẶC</div>
-        <button class="btn-xembc" onclick="APP.moXemBaoCao()"><span class="ic">📊</span> Xem báo cáo</button>
-        <div class="btn-xembc-sub">Xem, tra cứu và so sánh số liệu giữa các kỳ báo cáo</div>
+        <div class="welcome-card card2">
+          <div class="welcome-ico ico2">📊</div>
+          <button class="btn-xembc" onclick="APP.moXemBaoCao()"><span class="ic">📊</span> Xem báo cáo</button>
+          <div class="btn-xembc-sub">Xem, tra cứu và so sánh số liệu giữa các kỳ báo cáo</div>
+        </div>
       </div>
     </div>
   </main>

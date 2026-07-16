@@ -92,6 +92,9 @@ body{font-family:var(--font);font-size:14px;color:var(--dk);background:var(--g1)
 .sec{background:white;border-radius:var(--r);padding:13px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .sec-title{font-size:11px;font-weight:700;color:var(--g5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px;display:flex;align-items:center;gap:7px}
 .sec-title .num{width:19px;height:19px;border-radius:50%;background:var(--xc);color:white;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.qs-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:linear-gradient(135deg,#f0fdf4,var(--xp));border:1.5px solid var(--xn);border-radius:9px;padding:9px 13px;margin-bottom:13px;font-size:13px;color:var(--g5)}
+.qs-lbl{font-weight:700;color:var(--xd)}
+.qs-hint{font-size:11px;color:var(--g4);flex-basis:100%;font-style:italic}
 
 /* ── Bảng so sánh (builder) ── */
 .cmp{border-top:1px dashed var(--g2);margin-top:12px;padding-top:12px}
@@ -126,8 +129,8 @@ table.t td{padding:4px 9px;border-bottom:1px solid var(--g2);border-right:1px so
 table.t td.td-n{position:sticky;left:0;background:white;border-right:2px solid var(--g2);z-index:5;padding:5px 10px;white-space:normal;word-break:break-word;overflow-wrap:anywhere;line-height:1.4}
 table.t td.td-stt{text-align:center;color:var(--g4);font-size:11px;font-family:var(--mono)}
 table.t td.td-u{text-align:center;font-size:11px;color:var(--g4)}
-table.t td.td-val{text-align:right;font-family:var(--mono);font-size:13px;color:var(--xd)}
-table.t td.td-val.empty{color:var(--g3)}
+table.t td.td-val{text-align:right;font-family:var(--mono);font-size:13px;color:var(--xd);white-space:nowrap}
+table.t td.td-val.no-val{color:var(--g3)}
 table.t td.td-cmp{text-align:right;font-family:var(--mono);font-size:13px;font-weight:600;background:#f5f8ff}
 table.t td.td-cmp.up{color:#15803d}table.t td.td-cmp.down{color:var(--red)}table.t td.td-cmp.na{color:var(--g3);font-weight:400}
 table.t tr.tr-h td{background:var(--xp);font-weight:700;color:var(--xd);font-size:12px}
@@ -237,7 +240,46 @@ const XEM = {
     // Mặc định lọc theo năm mới nhất có dữ liệu kỳ
     const nams = [...new Set(this.allKy.map(k=>k.nam_bao_cao))].sort((a,b)=>b-a);
     this.namLoc = nams.length ? String(nams[0]) : 'all';
+    // Nạp độ rộng cột đã kéo trong phiên (sessionStorage — không đụng Supabase)
+    try{ this.wOverride = JSON.parse(sessionStorage.getItem('xembc_w')) || {}; }catch(e){ this.wOverride = {}; }
     this.buildSidebar();
+  },
+
+  // ── CHỌN NHANH: bộ kỳ mặc định theo tháng x, năm yyyy do người dùng chọn ──
+  // ct (x-1)/yyyy; ước x/yyyy; ước lũy kế x/yyyy; ct x/(yyyy-1); lũy kế x/(yyyy-1)
+  // So sánh: ước x/yyyy ÷ ct x/(yyyy-1); ước LK x/yyyy ÷ LK x/(yyyy-1). Thiếu kỳ nào bỏ qua kỳ đó.
+  timBoKyMacDinh(x, yyyy){
+    const chuan = s=>(s||'').trim().toLowerCase();
+    const tim = (loai, thang, nam)=>{
+      const ds = this.allKy.filter(k=>chuan(k.loai_so_lieu)===loai
+        && Number(k.thang_bao_cao)===thang && Number(k.nam_bao_cao)===nam);
+      if(!ds.length) return null;
+      return ds.reduce((a,b)=> this._khoaThuTu(a)>=this._khoaThuTu(b)?a:b).ky_bao_cao;
+    };
+    const ct1   = (x>1) ? tim('chính thức', x-1, yyyy) : tim('chính thức', 12, yyyy-1);
+    const uoc   = tim('ước thực hiện', x, yyyy);
+    const uoclk = tim('ước lũy kế',    x, yyyy);
+    const ct0   = tim('chính thức', x, yyyy-1);
+    const lk0   = tim('lũy kế',     x, yyyy-1);
+    const ky = this._thuTuTang([ct1, uoc, uoclk, ct0, lk0].filter(Boolean));
+    const ss = [];
+    if(uoc   && ct0) ss.push({tu:uoc,   mau:ct0});
+    if(uoclk && lk0) ss.push({tu:uoclk, mau:lk0});
+    ss.sort((a,b)=> this._khoaThuTu(this._kyObj(a.tu)) - this._khoaThuTu(this._kyObj(b.tu)));
+    return {ky, ss};
+  },
+
+  async apDungChonNhanh(){
+    const x = Number(UTILS.el('qs-thang').value), yyyy = Number(UTILS.el('qs-nam').value);
+    const {ky, ss} = this.timBoKyMacDinh(x, yyyy);
+    if(!ky.length){ UTILS.toast(`Không tìm thấy kỳ nào phù hợp cho tháng ${x}/${yyyy}.`,'er'); return; }
+    this.selectedKy = ky;          // thay thế lựa chọn hiện tại
+    this.comparisons = ss;
+    this.checkedKy.clear();
+    this.buildKyList(); this.buildCmpSelects(); this.renderChips();
+    UTILS.toast(`⚡ Đã chọn ${ky.length} kỳ + ${ss.length} so sánh cho tháng ${x}/${yyyy}${ky.length<5?' (kỳ thiếu đã bỏ qua)':''}.`,'ok');
+    this.daXem = true;
+    await this.taiDuLieu();
   },
 
   _khoaThuTu(k){
@@ -283,7 +325,8 @@ const XEM = {
     }
     // Kỳ là toàn cục nên giữ nguyên lựa chọn khi đổi bảng
     this.renderShell(b);
-    if(this.daXem && (this.selectedKy.length || this.comparisons.length)){
+    if(this.selectedKy.length || this.comparisons.length){
+      this.daXem = true;           // đã có bộ cột (mặc định hoặc tự chọn) → hiển thị ngay
       await this.taiDuLieu();
     }else{
       UTILS.el('tw-area').innerHTML = `<div class="empty"><span class="i">👆</span><span>Chọn kỳ báo cáo, rồi bấm <b>Xem biểu</b> để hiển thị số liệu.</span></div>`;
@@ -300,6 +343,13 @@ const XEM = {
             <select class="sel" id="sel-nam" onchange="XEM.doiNam(this.value)"></select>
           </div>
           <div class="ctrl-note" style="flex:1;min-width:200px">📄 Đang xem: <b>${b?.ten_bang||''}</b> — đổi bảng ở thanh bên trái bất cứ lúc nào.</div>
+        </div>
+        <div class="qs-bar">
+          <span class="qs-lbl">⚡ Chọn nhanh kỳ báo cáo:</span>
+          <span>Tháng</span> <select class="sel" id="qs-thang"></select>
+          <span>Năm</span> <select class="sel" id="qs-nam"></select>
+          <button class="btn-add" onclick="XEM.apDungChonNhanh()">Áp dụng</button>
+          <span class="qs-hint">Tự chọn: CT tháng trước · Ước tháng · Ước lũy kế · CT &amp; Lũy kế cùng kỳ năm trước + 2 so sánh (kỳ thiếu sẽ bỏ qua)</span>
         </div>
         <div class="sec-title"><span class="num">1</span> Chọn kỳ báo cáo <b id="cnt-ky" style="color:var(--xc);font-weight:700"></b></div>
         <div class="ky-box">
@@ -341,6 +391,7 @@ const XEM = {
 
     UTILS.el('topbar-actions').innerHTML = `<button class="btn-sm gr" onclick="XEM.xuatExcel()">📥 Xuất Excel</button>`;
     this.buildNamOptions();
+    this.buildChonNhanh();
     this.buildKyList();
     this.buildCmpSelects();
     this.renderChips();
@@ -354,6 +405,20 @@ const XEM = {
   },
 
   doiNam(v){ this.namLoc = v; this.buildKyList(); },
+
+  // Điền dropdown chọn nhanh: tháng 1-12, năm theo dữ liệu; mặc định = kỳ mới nhất
+  buildChonNhanh(){
+    const selT = UTILS.el('qs-thang'), selN = UTILS.el('qs-nam');
+    if(!selT) return;
+    const nams = [...new Set(this.allKy.map(k=>Number(k.nam_bao_cao)))].sort((a,b)=>b-a);
+    selN.innerHTML = nams.map(n=>`<option value="${n}">${n}</option>`).join('');
+    selT.innerHTML = Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+    if(nams.length){
+      const yMax = nams[0];
+      const tMax = Math.max(...this.allKy.filter(k=>Number(k.nam_bao_cao)===yMax).map(k=>Number(k.thang_bao_cao)||1));
+      selN.value = String(yMax); selT.value = String(tMax);
+    }
+  },
 
   kyTheoNam(){
     return this.namLoc==='all' ? this.allKy : this.allKy.filter(k=>String(k.nam_bao_cao)===String(this.namLoc));
@@ -520,12 +585,14 @@ const XEM = {
     return (v!=null) ? v : def;
   },
 
-  // Bắt đầu kéo giãn cột
+  // Bắt đầu kéo giãn cột: thao tác trực tiếp trên <col> nên CHỈ cột bị kéo thay đổi
   startResize(e, key){
     e.preventDefault(); e.stopPropagation();
-    const th = e.target.closest('th');
-    this._resizing = { th, key, startX:e.clientX, startW:th.offsetWidth,
-      idx:[...th.parentElement.children].indexOf(th) };
+    const tbl = document.getElementById('bang-xem');
+    const col = tbl ? tbl.querySelector(`col[data-key="${key}"]`) : null;
+    if(!col) return;
+    this._resizing = { col, tbl, key, startX:e.clientX,
+      startW:parseInt(col.style.width)||100, startTW:parseInt(tbl.style.width)||tbl.offsetWidth };
     document.body.classList.add('resizing');
     document.addEventListener('mousemove', this._onResize);
     document.addEventListener('mouseup', this._endResize);
@@ -533,11 +600,9 @@ const XEM = {
   _onResize(e){
     const r = XEM._resizing; if(!r) return;
     const w = Math.max(56, r.startW + e.clientX - r.startX);
-    r.th.style.minWidth = w+'px'; r.th.style.width = w+'px'; r.th.style.maxWidth = w+'px';
-    document.querySelectorAll('table.t tbody tr').forEach(tr=>{
-      const td = tr.children[r.idx];
-      if(td){ td.style.width = w+'px'; td.style.maxWidth = w+'px'; }
-    });
+    // Chỉ đổi <col> bị kéo + tổng width của bảng; các cột khác giữ nguyên tuyệt đối
+    r.col.style.width = w+'px';
+    r.tbl.style.width = (r.startTW - r.startW + w)+'px';
   },
   _endResize(e){
     const r = XEM._resizing; if(!r) return;
@@ -545,7 +610,9 @@ const XEM = {
     document.removeEventListener('mouseup', XEM._endResize);
     document.body.classList.remove('resizing');
     const w = Math.max(56, r.startW + e.clientX - r.startX);
-    XEM.wOverride[r.key] = w;   // chỉ lưu trong phiên làm việc, KHÔNG ghi SQL
+    XEM.wOverride[r.key] = w;
+    // Lưu tạm vào sessionStorage: giữ khi F5, mất khi đóng tab, KHÔNG ghi Supabase
+    try{ sessionStorage.setItem('xembc_w', JSON.stringify(XEM.wOverride)); }catch(err){}
     XEM._resizing = null;
   },
 
@@ -557,26 +624,36 @@ const XEM = {
       return;
     }
     const kyInfo = code => this.allKy.find(k=>k.ky_bao_cao===code);
-    // Độ rộng cột (tham khảo trang nhập liệu): mặc định từ cấu hình bảng/kỳ,
-    // nhưng nếu người dùng đã kéo tay thì ưu tiên giá trị trong phiên (this.wOverride)
+    // Độ rộng cột: mặc định lấy từ CSDL giống trang nhập liệu (280/70/120);
+    // nếu người dùng đã kéo tay thì ưu tiên giá trị lưu trong phiên (this.wOverride)
     const b = this.bObj || {}, mb = this.bangHT;
-    const wTen = this._wCot('ten:'+mb, b.do_rong_ten || 300);
-    const wDvt = this._wCot('dvt:'+mb, b.do_rong_dvt || 66);
-
-    // ── Header ──
-    let th = `<tr>
-      <th class="th-stt" style="width:44px">STT</th>
-      <th class="th-n" style="min-width:${wTen}px;width:${wTen}px;max-width:${wTen}px">Tên chỉ tiêu${this._rsz('ten:'+mb)}</th>
-      <th class="th-u" style="width:${wDvt}px;max-width:${wDvt}px">ĐVT${this._rsz('dvt:'+mb)}</th>`;
+    const dsCol = [
+      {key:'stt', w:46, rsz:false},
+      {key:'ten:'+mb, w:this._wCot('ten:'+mb, b.do_rong_ten || 280), rsz:true},
+      {key:'dvt:'+mb, w:this._wCot('dvt:'+mb, b.do_rong_dvt || 70),  rsz:true},
+    ];
     this.selectedKy.forEach(code=>{
       const k = kyInfo(code);
-      const w = this._wCot('ky:'+code, (k && k.do_rong_cot) || 120);
-      th += `<th class="th-ky" style="min-width:${w}px;width:${w}px;max-width:${w}px" title="${code}">${k?(k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)):code}${this._rsz('ky:'+code)}</th>`;
+      dsCol.push({key:'ky:'+code, w:this._wCot('ky:'+code, (k && k.do_rong_cot) || 120), rsz:true});
+    });
+    this.comparisons.forEach(c=>{
+      dsCol.push({key:'cmp:'+c.tu+'|'+c.mau, w:this._wCot('cmp:'+c.tu+'|'+c.mau, 128), rsz:true});
+    });
+    const tongW = dsCol.reduce((s,c)=>s+c.w, 0);
+    const colgroup = '<colgroup>' + dsCol.map(c=>`<col data-key="${c.key}" style="width:${c.w}px">`).join('') + '</colgroup>';
+
+    // ── Header (độ rộng do colgroup quyết định) ──
+    let th = `<tr>
+      <th class="th-stt">STT</th>
+      <th class="th-n">Tên chỉ tiêu${this._rsz('ten:'+mb)}</th>
+      <th class="th-u">ĐVT${this._rsz('dvt:'+mb)}</th>`;
+    this.selectedKy.forEach(code=>{
+      const k = kyInfo(code);
+      th += `<th class="th-ky" title="${code}">${k?(k.ky_bao_cao_tieu_de||('T'+k.thang_bao_cao+'/'+k.nam_bao_cao)):code}${this._rsz('ky:'+code)}</th>`;
     });
     this.comparisons.forEach(c=>{
       const key = 'cmp:'+c.tu+'|'+c.mau;
-      const w = this._wCot(key, 128);
-      th += `<th class="th-cmp" style="min-width:${w}px;width:${w}px;max-width:${w}px" title="${this._tenKy(c.tu)} / ${this._tenKy(c.mau)} × 100%">
+      th += `<th class="th-cmp" title="${this._tenKy(c.tu)} / ${this._tenKy(c.mau)} × 100%">
         ${this._tenKy(c.tu)}<br><span style="opacity:.75;font-weight:400">÷ ${this._tenKy(c.mau)} × 100%</span>${this._rsz(key)}</th>`;
     });
     th += `</tr>`;
@@ -603,7 +680,7 @@ const XEM = {
         const v = this.idx[`${c.id}|${code}`]?.gia_tri;
         const has = v!==null&&v!==undefined&&v!=='';
         const disp = has ? (isText ? v : UTILS.formatSo(v)) : '–';
-        cells += `<td class="td-val ${has?'':'empty'}" style="${isText?'text-align:left':''}">${disp}</td>`;
+        cells += `<td class="td-val ${has?'':'no-val'}" style="${isText?'text-align:left':''}">${disp}</td>`;
       });
       this.comparisons.forEach(cp=>{
         cells += this._oSoSanh(c, cp, isText);
@@ -613,7 +690,7 @@ const XEM = {
         <td class="td-u">${c.don_vi||''}</td>${cells}</tr>`;
     });
 
-    UTILS.el('tw-area').innerHTML = `<div class="tw"><table class="t"><thead>${th}</thead><tbody>${tb}</tbody></table></div>`;
+    UTILS.el('tw-area').innerHTML = `<div class="tw"><table class="t" id="bang-xem" style="table-layout:fixed;width:${tongW}px;min-width:0">${colgroup}<thead>${th}</thead><tbody>${tb}</tbody></table></div>`;
   },
 
   // Ô tỷ lệ % = giá trị(tu) / giá trị(mau) × 100
