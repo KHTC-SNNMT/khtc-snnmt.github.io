@@ -246,21 +246,31 @@ const XEM = {
   },
 
   // ── CHỌN NHANH: bộ kỳ mặc định theo tháng x, năm yyyy do người dùng chọn ──
-  // ct (x-1)/yyyy; ước x/yyyy; ước lũy kế x/yyyy; ct x/(yyyy-1); lũy kế x/(yyyy-1)
-  // So sánh: ước x/yyyy ÷ ct x/(yyyy-1); ước LK x/yyyy ÷ LK x/(yyyy-1). Thiếu kỳ nào bỏ qua kỳ đó.
+  // Quy tắc mã kỳ theo trang admin: {prefix}_{MM}/{yyyy} với prefix:
+  //   uoc = Ước thực hiện | uoclk = Ước lũy kế | ct = Chính thức | lkct = Lũy kế chính thức
+  // Bộ cột: ct (x-1)/yyyy (x=1 → ct 12/(yyyy-1)); uoc x/yyyy; uoclk x/yyyy;
+  //         cùng kỳ năm trước: ct x/(yyyy-1); lkct x/(yyyy-1).
+  // So sánh: uoc x/yyyy ÷ ct x/(yyyy-1); uoclk x/yyyy ÷ lkct x/(yyyy-1). Thiếu kỳ nào bỏ qua.
   timBoKyMacDinh(x, yyyy){
     const chuan = s=>(s||'').trim().toLowerCase();
-    const tim = (loai, thang, nam)=>{
-      const ds = this.allKy.filter(k=>chuan(k.loai_so_lieu)===loai
-        && Number(k.thang_bao_cao)===thang && Number(k.nam_bao_cao)===nam);
+    // Khớp ƯU TIÊN theo mã kỳ đúng quy tắc admin (không phân biệt hoa thường,
+    // chấp nhận tháng có/không đệm 0); DỰ PHÒNG khớp loại + tháng + năm cho dữ liệu cũ.
+    const tim = (prefixes, loais, thang, nam)=>{
+      const t2 = String(thang).padStart(2,'0');
+      const maHopLe = prefixes.flatMap(p=>[`${p}_${t2}/${nam}`, `${p}_${thang}/${nam}`]);
+      const ds = this.allKy.filter(k=>{
+        if(maHopLe.includes(chuan(k.ky_bao_cao))) return true;
+        return loais.includes(chuan(k.loai_so_lieu))
+          && Number(k.thang_bao_cao)===thang && Number(k.nam_bao_cao)===nam;
+      });
       if(!ds.length) return null;
       return ds.reduce((a,b)=> this._khoaThuTu(a)>=this._khoaThuTu(b)?a:b).ky_bao_cao;
     };
-    const ct1   = (x>1) ? tim('chính thức', x-1, yyyy) : tim('chính thức', 12, yyyy-1);
-    const uoc   = tim('ước thực hiện', x, yyyy);
-    const uoclk = tim('ước lũy kế',    x, yyyy);
-    const ct0   = tim('chính thức', x, yyyy-1);
-    const lk0   = tim('lũy kế',     x, yyyy-1);
+    const ct1   = (x>1) ? tim(['ct'],['chính thức'], x-1, yyyy) : tim(['ct'],['chính thức'], 12, yyyy-1);
+    const uoc   = tim(['uoc'],   ['ước thực hiện'], x, yyyy);
+    const uoclk = tim(['uoclk'], ['ước lũy kế'],    x, yyyy);
+    const ct0   = tim(['ct'],    ['chính thức'],    x, yyyy-1);
+    const lk0   = tim(['lkct','lk'], ['lũy kế chính thức','lũy kế'], x, yyyy-1);
     const ky = this._thuTuTang([ct1, uoc, uoclk, ct0, lk0].filter(Boolean));
     const ss = [];
     if(uoc   && ct0) ss.push({tu:uoc,   mau:ct0});
@@ -337,19 +347,19 @@ const XEM = {
   renderShell(b){
     UTILS.el('content').innerHTML = `
       <div class="sec">
-        <div class="ctrl-row" style="align-items:center;gap:14px;margin-bottom:12px">
-          <div class="ctrl-block">
-            <div class="ctrl-lbl">📅 Năm báo cáo</div>
-            <select class="sel" id="sel-nam" onchange="XEM.doiNam(this.value)"></select>
-          </div>
-          <div class="ctrl-note" style="flex:1;min-width:200px">📄 Đang xem: <b>${b?.ten_bang||''}</b> — đổi bảng ở thanh bên trái bất cứ lúc nào.</div>
-        </div>
         <div class="qs-bar">
           <span class="qs-lbl">⚡ Chọn nhanh kỳ báo cáo:</span>
           <span>Tháng</span> <select class="sel" id="qs-thang"></select>
           <span>Năm</span> <select class="sel" id="qs-nam"></select>
           <button class="btn-add" onclick="XEM.apDungChonNhanh()">Áp dụng</button>
           <span class="qs-hint">Tự chọn: CT tháng trước · Ước tháng · Ước lũy kế · CT &amp; Lũy kế cùng kỳ năm trước + 2 so sánh (kỳ thiếu sẽ bỏ qua)</span>
+        </div>
+        <div class="ctrl-row" style="align-items:center;gap:14px;margin-bottom:12px">
+          <div class="ctrl-block">
+            <div class="ctrl-lbl">📅 Năm báo cáo</div>
+            <select class="sel" id="sel-nam" onchange="XEM.doiNam(this.value)"></select>
+          </div>
+          <div class="ctrl-note" style="flex:1;min-width:200px">📄 Đang xem: <b>${b?.ten_bang||''}</b> — đổi bảng ở thanh bên trái bất cứ lúc nào.</div>
         </div>
         <div class="sec-title"><span class="num">1</span> Chọn kỳ báo cáo <b id="cnt-ky" style="color:var(--xc);font-weight:700"></b></div>
         <div class="ky-box">
