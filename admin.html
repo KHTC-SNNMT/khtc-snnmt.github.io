@@ -9,6 +9,7 @@
 <script src="config.js"></script>
 <script src="db.js"></script>
 <script src="utils.js"></script>
+<script src="congthuc.js"></script>
 <style>
 :root{--xd:#1b4332;--xc:#2d6a4f;--xn:#52b788;--xp:#d8f3dc;--w:#fff;--g1:#f4f6f5;--g2:#e4e9e6;--g3:#c5d0c9;--g4:#7a9485;--g5:#3d5247;--dk:#1a2e22;--red:#c0392b;--yellow:#d97706;--blue:#1e40af;--sw:210px;--font:'Be Vietnam Pro',sans-serif;--mono:'JetBrains Mono',monospace;--r:7px;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -109,11 +110,32 @@ table.ct-tbl tr.tr-locked{opacity:.55}
 .ct-inp.mono{font-family:var(--mono)}
 .ct-sel{width:100%;padding:2px 4px;border:1.5px solid var(--g2);border-radius:4px;font-size:11px;font-family:var(--font);background:white;outline:none}
 .ct-sel:focus{border-color:var(--xc)}
+/* ── Mobile: sidebar off-canvas + overlay ── */
+.hamburger{display:none;background:none;border:none;color:var(--xd);font-size:20px;cursor:pointer;padding:4px 8px;margin-right:6px}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:95}
+.sb-overlay.on{display:block}
+@media(max-width:768px){
+  body{overflow:auto;height:auto}
+  #app{height:auto;min-height:100vh}
+  .sb{position:fixed;top:0;left:0;height:100%;width:min(230px,84vw);z-index:100;
+      transform:translateX(-105%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+      box-shadow:4px 0 20px rgba(0,0,0,.25)}
+  .sb.open{transform:translateX(0)}
+  .hamburger{display:flex;align-items:center;justify-content:center}
+  .main{width:100%;overflow:visible}
+  .topbar{position:sticky;top:0;z-index:90;padding:0 10px}
+  .topbar-t{font-size:13px}
+  .content{overflow:visible;padding:8px}
+  .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .toast{left:8px;right:8px;top:54px}
+  .mbox{min-width:unset;width:94vw;padding:16px;max-height:90vh;overflow-y:auto}
+}
 </style>
 </head>
 <body>
+<div id="sb-overlay" class="sb-overlay" onclick="closeSidebar()"></div>
 <div id="app">
-  <aside class="sb">
+  <aside class="sb" id="sb">
     <div class="sb-head">
       <div class="sb-logo"><span class="i">⚙️</span>
         <div class="t">Quản trị<br><span style="opacity:.55;font-weight:400">BC định kỳ NN & MT</span></div>
@@ -129,7 +151,7 @@ table.ct-tbl tr.tr-locked{opacity:.55}
     </div>
   </aside>
   <main class="main">
-    <div class="topbar"><div class="topbar-t" id="topbar-t">Quản trị hệ thống</div></div>
+    <div class="topbar"><button class="hamburger" onclick="toggleSidebar()">☰</button><div class="topbar-t" id="topbar-t">Quản trị hệ thống</div></div>
     <div class="content" id="content"><div class="loading"><span class="spin"></span> Đang tải...</div></div>
   </main>
 </div>
@@ -305,8 +327,19 @@ table.ct-tbl tr.tr-locked{opacity:.55}
 const xacNhan = (t,m,cb) => UTILS.xacNhan(t,m,cb);
 const toast = (m,t) => UTILS.toast(m,t);
 
+// ── Sidebar mobile ──
+function toggleSidebar(){
+  document.getElementById('sb')?.classList.toggle('open');
+  document.getElementById('sb-overlay')?.classList.toggle('on');
+}
+function closeSidebar(){
+  document.getElementById('sb')?.classList.remove('open');
+  document.getElementById('sb-overlay')?.classList.remove('on');
+}
+
 let user=null, dsKy=[], dsTK=[], dsBang=[], editKyId=null, editTKId=null, pqTKId=null;
 let sortCol='', sortDir=1; // sort kỳ báo cáo
+let dsSoSanh=[], coBangSoSanh=true; // cấu hình cột so sánh (Kỳ A ÷ Kỳ B × 100%)
 
 // ── INIT ──
 window.addEventListener('load', async () => {
@@ -334,6 +367,7 @@ function buildMenuAdmin() {
     <div class="ni" id="ni-tk" onclick="hienTaiKhoan()"><span class="i">👤</span> Tài khoản</div>
     <div class="ni" id="ni-pq" onclick="hienPhanQuyen()"><span class="i">🔑</span> Phân quyền</div>
     <div class="ni" id="ni-ct" onclick="hienChiTieu()"><span class="i">📑</span> Chỉ tiêu</div>
+    <div class="ni" id="ni-ctct" onclick="hienCongThuc()"><span class="i">🧮</span> Công thức</div>
     <div class="ni" id="ni-bang" onclick="hienQuanLyBang()"><span class="i">🗂️</span> Quản lý bảng</div>
     <div class="ni" id="ni-tdb" onclick="hienTieuDeBang()"><span class="i">🏷️</span> Tiêu đề bảng</div>
     <div class="nlbl">Tài khoản</div>
@@ -344,7 +378,7 @@ function buildMenuUser() {
     <div class="nlbl">Tài khoản</div>
     <div class="ni act" onclick="hienDoiPass()"><span class="i">🔐</span> Đổi mật khẩu</div>`;
 }
-function setAct(id) { document.querySelectorAll('.ni').forEach(e=>e.classList.remove('act')); document.getElementById(id)?.classList.add('act'); }
+function setAct(id) { closeSidebar(); document.querySelectorAll('.ni').forEach(e=>e.classList.remove('act')); document.getElementById(id)?.classList.add('act'); }
 
 async function loadKy(namBD, namKT) { dsKy = await DB.layTatCaKy(namBD, namKT); }
 async function loadTK() { dsTK = await DB.layTatCaTaiKhoan(); }
@@ -360,6 +394,9 @@ async function hienKyBaoCao() {
   if (!filterNamBD) filterNamBD = namHienTai - 1;
   if (!filterNamKT) filterNamKT = namHienTai + 1;
   await loadKy(filterNamBD, filterNamKT);
+  // Bảng cau_hinh_so_sanh có thể chưa được tạo → hiện hướng dẫn thay vì lỗi
+  try { dsSoSanh = await DB.laySoSanh(false); coBangSoSanh = true; }
+  catch(e) { dsSoSanh = []; coBangSoSanh = false; }
   renderKyBaoCao();
 }
 
@@ -448,7 +485,126 @@ function renderKyBaoCao() {
           <tbody>${tbody||'<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--g4)">Không có kỳ báo cáo nào</td></tr>'}</tbody>
         </table>
       </div>
+    </div>
+    ${renderCardSoSanh()}`;
+}
+
+// ── CỘT SO SÁNH TRONG BẢNG NHẬP LIỆU (index.html) ──
+// Cột = Kỳ A ÷ Kỳ B × 100%, chỉ đọc, tự tính lại khi số liệu nhập thay đổi.
+function tenKyAdmin(ma) {
+  const k = dsKy.find(x => x.ky_bao_cao === ma);
+  return k ? (k.ky_bao_cao_tieu_de || ma) : ma;
+}
+
+function renderCardSoSanh() {
+  if (!coBangSoSanh) {
+    return `<div class="card" style="margin-top:12px">
+      <div class="card-head"><h3>➗ Cột so sánh trong bảng nhập liệu</h3></div>
+      <div style="padding:14px;font-size:13px;color:var(--g5)">
+        ⚠️ Chưa tạo bảng <b class="mono">cau_hinh_so_sanh</b> trong Supabase.<br>
+        Hãy chạy file <b class="mono">sql_cau_hinh_so_sanh.sql</b> (kèm theo bản cập nhật này)
+        trong <b>Supabase → SQL Editor</b>, sau đó bấm lại mục "Kỳ báo cáo".
+      </div>
     </div>`;
+  }
+  // Chỉ cho chọn các kỳ ĐANG HIỂN THỊ trong bảng nhập (dua_vao_bieu_bao_cao = true)
+  const kyHien = dsKy.filter(k => k.dua_vao_bieu_bao_cao)
+    .sort((a,b) => (Number(a.thu_tu_hien_thi)||0) - (Number(b.thu_tu_hien_thi)||0));
+  const opts = kyHien.map(k =>
+    `<option value="${k.ky_bao_cao}">${k.ky_bao_cao_tieu_de || k.ky_bao_cao}</option>`).join('');
+
+  const rows = dsSoSanh.map(c => `<tr>
+    <td style="text-align:center;padding:4px 8px">
+      <input class="num-inp" type="number" min="1" value="${c.thu_tu||''}" placeholder="--" style="width:70px"
+        onchange="capNhatSoSanhField(${c.id},'thu_tu',this.value===''?null:parseInt(this.value))">
+    </td>
+    <td>${tenKyAdmin(c.ky_tu)} <span class="mono" style="color:var(--g4);font-size:11px">(${c.ky_tu})</span></td>
+    <td style="text-align:center;font-weight:700;color:var(--blue)">÷</td>
+    <td>${tenKyAdmin(c.ky_mau)} <span class="mono" style="color:var(--g4);font-size:11px">(${c.ky_mau})</span></td>
+    <td style="text-align:center;padding:4px 8px">
+      <input class="num-inp" type="number" min="60" max="400" value="${c.do_rong_cot||128}" placeholder="128"
+        onchange="capNhatSoSanhField(${c.id},'do_rong_cot',parseInt(this.value)||128)">
+    </td>
+    <td style="text-align:center">
+      <label class="sw-wrap" style="justify-content:center">
+        <label class="sw"><input type="checkbox" ${c.hien_thi?'checked':''}
+          onchange="capNhatSoSanhField(${c.id},'hien_thi',this.checked)">
+          <span class="sw-slider"></span></label>
+        <span class="sw-lbl" style="font-size:10px">${c.hien_thi?'✅':'⬜'}</span>
+      </label>
+    </td>
+    <td style="white-space:nowrap">
+      <button class="btn danger" style="padding:4px 8px" onclick="xoaSoSanhAdmin(${c.id})">🗑</button>
+    </td>
+  </tr>`).join('');
+
+  return `<div class="card" style="margin-top:12px">
+    <div class="card-head">
+      <h3>➗ Cột so sánh trong bảng nhập liệu <span style="font-size:12px;font-weight:400;color:var(--g4)">(Kỳ A ÷ Kỳ B × 100% — chỉ đọc, tự tính khi nhập)</span></h3>
+    </div>
+    <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+      <label>Kỳ A (tử số)</label>
+      <select class="inp" id="ss-tu" style="width:auto;min-width:180px">${opts||'<option value="">Chưa có kỳ hiển thị</option>'}</select>
+      <label style="font-weight:700;color:var(--blue)">÷</label>
+      <label>Kỳ B (mẫu số)</label>
+      <select class="inp" id="ss-mau" style="width:auto;min-width:180px">${opts||'<option value="">Chưa có kỳ hiển thị</option>'}</select>
+      <label>× 100% &nbsp; Thứ tự</label>
+      <input class="num-inp" type="number" id="ss-thutu" min="1" placeholder="--" style="width:70px">
+      <button class="btn primary" onclick="themSoSanhAdmin()">➕ Thêm cột so sánh</button>
+    </div>
+    <div style="padding:0 14px 6px;font-size:11px;color:var(--g4);font-style:italic">
+      Chỉ chọn được các kỳ đang bật "Hiện" (đưa vào biểu). Cột so sánh chỉ xuất hiện trong bảng nhập
+      khi CẢ HAI kỳ đều đang hiển thị. Nếu không thấy kỳ cần chọn, hãy mở rộng bộ lọc năm phía trên.
+    </div>
+    <div style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr>
+          <th style="width:80px">Thứ tự</th><th>Kỳ A (tử số)</th><th style="width:36px"></th>
+          <th>Kỳ B (mẫu số)</th><th style="width:90px">Rộng(px)</th>
+          <th style="width:70px;text-align:center">Hiện</th><th style="width:60px"></th>
+        </tr></thead>
+        <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--g4)">Chưa có cột so sánh nào</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+async function themSoSanhAdmin() {
+  const tu  = document.getElementById('ss-tu')?.value;
+  const mau = document.getElementById('ss-mau')?.value;
+  const thutu = document.getElementById('ss-thutu')?.value;
+  if (!tu || !mau) { toast('Hãy chọn đủ Kỳ A và Kỳ B.', 'er'); return; }
+  if (tu === mau)  { toast('Kỳ A và Kỳ B phải khác nhau.', 'er'); return; }
+  if (dsSoSanh.some(c => c.ky_tu === tu && c.ky_mau === mau)) { toast('Cột so sánh này đã có.', 'er'); return; }
+  try {
+    await DB.themSoSanh({ ky_tu: tu, ky_mau: mau, thu_tu: thutu ? parseInt(thutu) : null, hien_thi: true, do_rong_cot: 128 });
+    toast('✅ Đã thêm cột so sánh!');
+    await hienKyBaoCao();
+  } catch(e) { toast('Lỗi: ' + e.message, 'er'); }
+}
+
+async function capNhatSoSanhField(id, col, val) {
+  const u = {}; u[col] = val;
+  try {
+    await DB.suaSoSanh(id, u);
+    toast('✅ Đã cập nhật!');
+    const c = dsSoSanh.find(x => x.id === id);
+    if (c) c[col] = val;
+    if (col === 'hien_thi') renderKyBaoCao();
+  } catch(e) { toast('Lỗi: ' + e.message, 'er'); }
+}
+
+function xoaSoSanhAdmin(id) {
+  const c = dsSoSanh.find(x => x.id === id);
+  UTILS.xacNhan('Xóa cột so sánh',
+    `Xóa cột <b>${tenKyAdmin(c?.ky_tu||'')} ÷ ${tenKyAdmin(c?.ky_mau||'')} × 100%</b>?<br>Chỉ xóa cấu hình cột, không ảnh hưởng số liệu.`,
+    async () => {
+      try {
+        await DB.xoaSoSanh(id);
+        toast('✅ Đã xóa cột so sánh!');
+        await hienKyBaoCao();
+      } catch(e) { toast('Lỗi: ' + e.message, 'er'); }
+    });
 }
 
 function doSort(col) {
@@ -920,13 +1076,448 @@ async function xacNhanXoaCT() {
   } catch(e){err.textContent='❌ Lỗi: '+e.message;}
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// 🧮 CÔNG THỨC CHỈ TIÊU TỔNG
+// Ô có công thức bị KHÓA nhập tay ở trang nhập liệu.
+// ═══════════════════════════════════════════════════════════
+let dsCTCT = [];        // các dòng cong_thuc_chi_tieu của bảng đang chọn
+let ctChiTieu = [];     // danh sách chỉ tiêu của bảng đang chọn
+let ctPrepAdmin = null; // kết quả CT.chuanBi (để hiện lỗi/cảnh báo)
+let ctBangHT = null;
+let ctChuaCoBang = false;
+
+async function hienCongThuc() {
+  setAct('ni-ctct');
+  document.getElementById('topbar-t').textContent = 'Công thức chỉ tiêu tổng';
+  await loadBang();
+  document.getElementById('content').innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head">
+        <h3>🧮 Công thức chỉ tiêu tổng</h3>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--g5)">Chọn bảng:</label>
+          <select id="sel-bang-ctct" onchange="taiCongThuc(this.value)"
+            style="padding:6px 10px;border:1.5px solid var(--g2);border-radius:var(--r);font-family:var(--font);font-size:13px">
+            ${dsBang.map(b=>`<option value="${b.bang}">${b.ten_bang}</option>`).join('')}
+          </select>
+          <button class="btn ghost" onclick="doiSoatCongThuc()" title="Tính lại toàn bộ chỉ tiêu tổng cho mọi kỳ và ghi xuống CSDL">🔄 Đối soát &amp; ghi lại</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--g5);line-height:1.7;margin-top:4px">
+        Biểu thức chỉ nhận <b>mã chỉ tiêu</b> nối bằng dấu <b>+</b> và <b>−</b> (ví dụ <code>TT7+TT43+TT77</code>).
+        Ô đích sẽ bị <b>khóa nhập tay</b> ở trang nhập liệu và tự cộng từ các dòng thành phần.
+        Cho phép lồng nhau (công thức tham chiếu công thức khác); hệ thống tự phát hiện vòng lặp.
+      </div>
+    </div>
+    <div id="ctct-content"><div class="loading"><span class="spin"></span></div></div>`;
+  if (dsBang.length) taiCongThuc(dsBang[0].bang);
+}
+
+async function taiCongThuc(maBang) {
+  ctBangHT = maBang;
+  const el = document.getElementById('ctct-content');
+  el.innerHTML = '<div class="loading"><span class="spin"></span> Đang tải...</div>';
+  ctChuaCoBang = false;
+  try { dsCTCT = await DB.layCongThuc(maBang); }
+  catch (e) { dsCTCT = []; ctChuaCoBang = true; }
+  try { ctChiTieu = await DB.layChiTieuTheoBang(maBang); } catch (e) { ctChiTieu = []; }
+  ctPrepAdmin = CT.chuanBi(dsCTCT, ctChiTieu);
+  renderCongThuc();
+}
+
+function _tenCT(id) {
+  const c = ctChiTieu.find(x => x.id === id);
+  return c ? c.chi_tieu.trim() : '';
+}
+
+function renderCongThuc() {
+  const el = document.getElementById('ctct-content');
+  const b = dsBang.find(x => x.bang === ctBangHT);
+
+  if (ctChuaCoBang) {
+    el.innerHTML = `<div class="card"><div class="card-head"><h3>⚠️ Chưa có bảng công thức</h3></div>
+      <div style="font-size:12.5px;color:var(--g5);line-height:1.7">
+        Chưa có bảng <code>cong_thuc_chi_tieu</code> trong Supabase.
+        Hãy mở file <b>sql_cong_thuc_chi_tieu.sql</b>, dán vào Supabase → SQL Editor và chạy một lần, rồi tải lại trang này.
+      </div></div>`;
+    return;
+  }
+
+  const canhBaoHtml = (arr, mau, icon) => arr.length
+    ? `<div style="background:${mau};border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;line-height:1.7">
+        ${arr.map(x => `${icon} ${x}`).join('<br>')}</div>` : '';
+
+  const rows = dsCTCT.map(r => {
+    const hop = ctPrepAdmin.map[r.id_chi_tieu];
+    const ten = _tenCT(r.id_chi_tieu);
+    return `<tr${r.hien_thi === false ? ' style="opacity:.5"' : ''}>
+      <td style="white-space:nowrap"><span class="cell-text mono" style="font-size:11.5px;font-weight:700">${r.id_chi_tieu}</span></td>
+      <td><span class="cell-text" style="font-size:11.5px;color:var(--g5)">${ten || '<span style="color:var(--red)">⚠ không có chỉ tiêu này</span>'}</span></td>
+      <td><input class="ct-inp mono" style="font-size:11.5px" value="${(r.bieu_thuc||'').replace(/"/g,'&quot;')}"
+            placeholder="TT7+TT43+TT77"
+            onchange="luuTruongCT(${r.id},'bieu_thuc',this.value.trim())"></td>
+      <td><input class="ct-inp" style="font-size:11.5px" value="${(r.loai_ky_loai_tru||'').replace(/"/g,'&quot;')}"
+            placeholder="(áp dụng mọi kỳ)" title="Các loai_so_lieu KHÔNG áp công thức, ngăn cách bằng dấu phẩy. Để trống = áp dụng mọi kỳ."
+            onchange="luuTruongCT(${r.id},'loai_ky_loai_tru',this.value.trim()||null)"></td>
+      <td><input class="ct-inp" style="font-size:11.5px" value="${(r.ghi_chu||'').replace(/"/g,'&quot;')}" placeholder="--"
+            onchange="luuTruongCT(${r.id},'ghi_chu',this.value.trim()||null)"></td>
+      <td style="text-align:center">
+        <label class="sw"><input type="checkbox" ${r.hien_thi !== false ? 'checked' : ''}
+          onchange="luuTruongCT(${r.id},'hien_thi',this.checked)"><span class="sw-slider"></span></label></td>
+      <td style="text-align:center">${hop ? '<span title="Hợp lệ" style="color:#15803d;font-weight:700">✔</span>'
+                                          : '<span title="Công thức đang sai — ô sẽ trở lại nhập tay" style="color:var(--red);font-weight:700">✘</span>'}</td>
+      <td style="text-align:center;padding:3px 6px">
+        <button onclick="xoaCongThucAdmin(${r.id},'${r.id_chi_tieu}')"
+          style="padding:3px 8px;background:#fee2e2;color:var(--red);border:none;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--font)"
+          title="Xóa công thức — ô trở lại nhập tay">🗑️</button></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-head"><h3>➕ Thêm công thức — ${b?.ten_bang || ''}</h3></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="ctct-id" class="ct-inp mono" placeholder="Mã chỉ tiêu đích (TT4.1)" style="max-width:200px">
+        <span style="font-weight:700;color:var(--g4)">=</span>
+        <input id="ctct-bt" class="ct-inp mono" placeholder="TT7+TT43+TT77+TT115" style="flex:1;min-width:240px">
+        <button class="btn primary" onclick="themCongThucAdmin()">Thêm</button>
+      </div>
+      <div id="ctct-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    </div>
+
+    ${canhBaoHtml(ctPrepAdmin.loi, '#fee2e2', '❌')}
+    ${canhBaoHtml(ctPrepAdmin.canhBao, '#fef3c7', '⚠️')}
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Danh sách công thức <span style="font-size:11px;font-weight:400;color:var(--g4)">(${dsCTCT.length})</span></h3>
+      </div>
+      ${dsCTCT.length ? `<div style="overflow-x:auto"><table class="ct-tbl">
+        <thead><tr>
+          <th style="width:90px">Mã đích</th>
+          <th style="width:230px">Tên chỉ tiêu</th>
+          <th style="width:320px">Biểu thức</th>
+          <th style="width:150px">Kỳ loại trừ</th>
+          <th style="width:160px">Ghi chú</th>
+          <th style="width:60px;text-align:center">Bật</th>
+          <th style="width:50px;text-align:center">OK</th>
+          <th style="width:55px;text-align:center">Xóa</th>
+        </tr></thead>
+        <tbody>${rows}</tbody></table></div>`
+      : `<div style="font-size:12.5px;color:var(--g4);padding:8px 0">Bảng này chưa có công thức nào. Mọi ô vẫn nhập tay bình thường.</div>`}
+    </div>`;
+}
+
+async function luuTruongCT(id, col, val) {
+  try {
+    await DB.suaCongThuc(id, { [col]: val });
+    toast('✅ Đã lưu!');
+    await taiCongThuc(ctBangHT);
+  } catch (e) { toast('Lỗi: ' + e.message, 'er'); }
+}
+
+async function themCongThucAdmin() {
+  const err = document.getElementById('ctct-err'); err.textContent = '';
+  const id = document.getElementById('ctct-id').value.trim();
+  const bt = document.getElementById('ctct-bt').value.trim();
+  if (!id) { err.textContent = '❌ Chưa nhập mã chỉ tiêu đích.'; return; }
+  if (!bt) { err.textContent = '❌ Chưa nhập biểu thức.'; return; }
+
+  const dich = ctChiTieu.find(c => c.id === id);
+  if (!dich)                        { err.textContent = `❌ Bảng này không có chỉ tiêu "${id}".`; return; }
+  if (dich.la_tieu_de)              { err.textContent = `❌ "${id}" là dòng tiêu đề nhóm, không gán công thức được.`; return; }
+  if (dich.kieu_du_lieu === 'text') { err.textContent = `❌ "${id}" là chỉ tiêu dạng văn bản, không cộng được.`; return; }
+  if (dsCTCT.some(r => r.id_chi_tieu === id)) { err.textContent = `❌ "${id}" đã có công thức. Hãy sửa dòng bên dưới.`; return; }
+
+  const t = CT.tach(bt);
+  if (t.loi) { err.textContent = '❌ ' + t.loi; return; }
+  const la = t.terms.filter(x => !ctChiTieu.some(c => c.id === x.ma)).map(x => x.ma);
+  if (la.length) { err.textContent = `❌ Mã không có trong bảng: ${[...new Set(la)].join(', ')}`; return; }
+  if (t.terms.some(x => x.ma === id)) { err.textContent = '❌ Công thức tự tham chiếu chính nó.'; return; }
+
+  // Thử ghép vào bộ hiện có để bắt vòng lặp trước khi ghi
+  const thu = CT.chuanBi(dsCTCT.concat([{ id: -1, id_chi_tieu: id, bieu_thuc: bt, hien_thi: true }]), ctChiTieu);
+  const vong = thu.loi.find(x => x.startsWith('Vòng lặp'));
+  if (vong) { err.textContent = '❌ ' + vong; return; }
+
+  try {
+    await DB.themCongThuc({ bang: ctBangHT, id_chi_tieu: id, bieu_thuc: bt });
+    toast('✅ Đã thêm công thức!');
+    document.getElementById('ctct-id').value = '';
+    document.getElementById('ctct-bt').value = '';
+    await taiCongThuc(ctBangHT);
+  } catch (e) { err.textContent = '❌ Lỗi: ' + e.message; }
+}
+
+function xoaCongThucAdmin(id, ma) {
+  UTILS.xacNhan('Xóa công thức',
+    `Xóa công thức của <b>${ma}</b>?<br>Ô này sẽ trở lại <b>nhập tay</b> ở trang nhập liệu. Số liệu đã lưu không bị xóa.`,
+    async () => {
+      try { await DB.xoaCongThuc(id); toast('🗑️ Đã xóa công thức'); await taiCongThuc(ctBangHT); }
+      catch (e) { toast('Lỗi: ' + e.message, 'er'); }
+    });
+}
+
+// ── ĐỐI SOÁT: tính lại mọi kỳ và ghi xuống CSDL ──
+async function doiSoatCongThuc() {
+  if (!ctBangHT) return;
+  if (!ctPrepAdmin || !ctPrepAdmin.order.length) { toast('Bảng này chưa có công thức hợp lệ.', 'er'); return; }
+  toast('⏳ Đang đối soát...');
+  try {
+    const dsKyTC = await DB.layTatCaKy();
+    if (!dsKyTC.length) { toast('Chưa có kỳ báo cáo nào.', 'er'); return; }
+    const maKys = dsKyTC.map(k => k.ky_bao_cao);
+    const dl = await DB.layDuLieu(ctBangHT, maKys);
+    const idx = {};
+    dl.forEach(r => { idx[`${r.id_chi_tieu}|${r.ky_bao_cao}`] = r; });
+
+    const kq = CT.apDungVaoIdx(idx, ctPrepAdmin, dsKyTC);
+    const rows = [];
+    Object.keys(idx).forEach(k => {
+      const r = idx[k];
+      if (!r._ct) return;
+      const cu = r._ctCu, moi = r.gia_tri;
+      const lech = (cu === null && moi !== null) || (cu !== null && moi === null) ||
+                   (cu !== null && moi !== null && Math.abs(cu - moi) > 1e-6);
+      if (!lech) return;
+      rows.push({ id_chi_tieu: r.id_chi_tieu, ky_bao_cao: r.ky_bao_cao, gia_tri: moi,
+                  nguoi_nhap: 'Đối soát công thức', thoi_gian_nhap: new Date().toISOString() });
+    });
+
+    if (!rows.length) { toast(`✅ Đã kiểm tra ${kq.soODaSua} ô — không có ô nào lệch.`); return; }
+
+    UTILS.xacNhan('Đối soát công thức',
+      `Đã kiểm tra <b>${kq.soODaSua}</b> ô chỉ tiêu tổng trên <b>${dsKyTC.length}</b> kỳ.<br>
+       Có <b style="color:var(--red)">${rows.length}</b> ô đang lệch so với công thức.<br><br>
+       Ghi đè các ô lệch này bằng giá trị tính từ công thức?`,
+      async () => {
+        try {
+          for (let i = 0; i < rows.length; i += 500) await DB.luuDuLieu(ctBangHT, rows.slice(i, i + 500));
+          toast(`✅ Đã ghi lại ${rows.length} ô theo công thức.`);
+        } catch (e) { toast('Lỗi ghi: ' + e.message, 'er'); }
+      });
+  } catch (e) { toast('Lỗi đối soát: ' + e.message, 'er'); }
+}
+
 // ── QUẢN LÝ BẢNG ──
 async function hienQuanLyBang() {
   setAct('ni-bang');
   document.getElementById('topbar-t').textContent = 'Quản lý bảng báo cáo';
   await loadBang();
+  // Nạp danh sách Google Sheet (null = bảng chưa tồn tại trong Supabase)
+  try { dsGS = await DB.layGSheet(false); } catch(e) { dsGS = null; }
   renderQuanLyBang();
+  document.getElementById('content').insertAdjacentHTML('beforeend', renderGSheetCard());
+  document.getElementById('content').insertAdjacentHTML('beforeend', renderGanGSCard());
 }
+
+// ── GẮN GOOGLE SHEET VÀO BẢNG BÁO CÁO (danh_sach_bang.gsheet_url) ──
+// Bảng được gắn sheet sẽ hiển thị sheet thay cho bảng nhập liệu.
+// Lưu link GỐC người dùng dán; hệ thống tự chuyển sang dạng nhúng khi hiển thị.
+function renderGanGSCard() {
+  const coUrl   = dsBang.filter(b => b.gsheet_url);
+  const chuaUrl = dsBang.filter(b => !b.gsheet_url);
+  const rows = coUrl.map(b => {
+    const opts = `<option value="">— Gỡ khỏi bảng —</option>` +
+      dsBang.map(x => `<option value="${x.bang}" ${x.bang===b.bang?'selected':''}>${x.ten_bang}</option>`).join('');
+    return `<tr>
+      <td style="min-width:150px"><strong>${b.ten_bang}</strong></td>
+      <td style="min-width:220px;max-width:340px">
+        <span class="mono" style="display:block;font-size:11px;color:var(--g4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${b.gsheet_url}">${b.gsheet_url}</span></td>
+      <td style="min-width:170px">
+        <select class="ct-sel" style="font-size:12px;padding:5px 8px" onchange="GSB.doi('${b.bang}', this.value)">${opts}</select></td>
+      <td style="white-space:nowrap;text-align:right">
+        <a href="${b.gsheet_url}" target="_blank" rel="noopener" class="btn ghost" style="padding:4px 8px;text-decoration:none">🔗</a>
+        <button class="btn danger" style="padding:4px 8px;margin-left:3px" onclick="GSB.go('${b.bang}', this.dataset.ten)" data-ten="${(b.ten_bang||'').replace(/"/g,'&quot;')}">🗑</button></td>
+    </tr>`;
+  }).join('');
+  return `<div class="card" style="margin-top:12px">
+    <div class="card-head">
+      <h3>🔗 Gắn Google Sheet vào bảng báo cáo <span style="font-size:12px;font-weight:400;color:var(--g4)">(${coUrl.length} bảng đang gắn)</span></h3>
+      <button class="btn primary" onclick="GSB.them()">+ Gắn Sheet vào bảng</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr><th>Bảng báo cáo</th><th>Link Google Sheet</th><th>Chuyển sang bảng</th><th></th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="4" style="text-align:center;padding:18px;color:var(--g4)">Chưa có bảng nào gắn Google Sheet.</td></tr>`}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--g4);padding:8px 16px 12px">
+      💡 Bảng được gắn sheet sẽ <strong>hiển thị sheet thay cho bảng nhập liệu</strong> ở trang nhập và trang xem.
+      Dán link dạng nào cũng được (<code>/edit</code>, chia sẻ, <code>pubhtml</code>…) — hệ thống tự chuyển sang dạng nhúng.
+      Sheet phải chia sẻ công khai (Anyone with the link → Viewer).
+      ${chuaUrl.length===0?'<br>⚠️ Mọi bảng đều đã gắn sheet — gỡ bớt trước khi gắn mới.':''}
+    </div>
+  </div>`;
+}
+
+const GSB = {
+  them(){
+    const chuaUrl = dsBang.filter(b => !b.gsheet_url);
+    if(!chuaUrl.length){ toast('Mọi bảng đều đã gắn sheet. Gỡ bớt trước.','er'); return; }
+    UTILS.xacNhan('🔗 Gắn Google Sheet vào bảng',
+      `<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;text-align:left">
+        <div><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">LINK GOOGLE SHEET *</label>
+          <input id="gsb-url" type="text" placeholder="Dán link Google Sheet (dạng nào cũng được)…"
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-family:monospace;font-size:12px;outline:none"></div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">GẮN VÀO BẢNG *</label>
+          <select id="gsb-bang" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-family:var(--font);font-size:13px;outline:none">
+            <option value="">— Chọn bảng —</option>
+            ${chuaUrl.map(b=>`<option value="${b.bang}">${b.ten_bang}</option>`).join('')}
+          </select></div>
+        <div style="font-size:11px;color:var(--g4)">💡 Sheet phải chia sẻ công khai (Anyone with the link → Viewer).</div>
+      </div>`,
+      async ()=>{
+        const url  = document.getElementById('gsb-url')?.value.trim();
+        const bang = document.getElementById('gsb-bang')?.value;
+        if(!url || !bang){ toast('Vui lòng dán link và chọn bảng!','er'); return; }
+        if(!url.includes('docs.google.com/spreadsheets')){ toast('Link phải là Google Sheets.','er'); return; }
+        try{
+          await DB.capNhatBang(bang, { gsheet_url: url });   // lưu link GỐC
+          toast('✅ Đã gắn Google Sheet!');
+          await hienQuanLyBang();
+        }catch(e){ toast('Lỗi: '+e.message,'er'); }
+      });
+  },
+  async doi(bangCu, bangMoi){
+    const b = dsBang.find(x=>x.bang===bangCu);
+    const url = b?.gsheet_url;
+    if(bangMoi===bangCu) return;
+    try{
+      await DB.capNhatBang(bangCu, { gsheet_url: null });
+      if(bangMoi){
+        await DB.capNhatBang(bangMoi, { gsheet_url: url });
+        toast('✅ Đã chuyển sheet sang bảng khác!');
+      }else{
+        toast('✅ Đã gỡ sheet khỏi bảng!');
+      }
+      await hienQuanLyBang();
+    }catch(e){ toast('Lỗi: '+e.message,'er'); await hienQuanLyBang(); }
+  },
+  go(bang, ten){
+    UTILS.xacNhan('🗑 Gỡ Google Sheet', `Gỡ link Google Sheet khỏi bảng <strong>${ten}</strong>?<br>
+      <span style="font-size:12px;color:var(--g4)">(Bảng sẽ quay lại chế độ nhập liệu bình thường; sheet gốc không bị ảnh hưởng)</span>`,
+      async ()=>{
+        try{ await DB.capNhatBang(bang, { gsheet_url: null }); toast('✅ Đã gỡ!'); await hienQuanLyBang(); }
+        catch(e){ toast('Lỗi: '+e.message,'er'); }
+      });
+  },
+};
+
+// ── QUẢN LÝ GOOGLE SHEET ──
+let dsGS = [];
+function renderGSheetCard() {
+  let body;
+  if (dsGS === null) {
+    body = `<div style="color:var(--red);font-size:12px;padding:4px 0">⚠️ Chưa có bảng <code>danh_sach_gsheet</code> trong Supabase. Chạy SQL sau một lần rồi tải lại trang:</div>
+      <pre style="background:var(--g1);border-radius:6px;padding:10px;margin-top:6px;font-size:11px;overflow-x:auto">CREATE TABLE danh_sach_gsheet (
+  id        SERIAL PRIMARY KEY,
+  ten_sheet TEXT NOT NULL,
+  mo_ta     TEXT,
+  embed_url TEXT NOT NULL,
+  thu_tu    INTEGER DEFAULT 1,
+  chieu_cao INTEGER DEFAULT 520,
+  hien_thi  BOOLEAN DEFAULT TRUE,
+  tao_luc   TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE danh_sach_gsheet ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read_all"  ON danh_sach_gsheet FOR SELECT USING (true);
+CREATE POLICY "write_all" ON danh_sach_gsheet USING (true) WITH CHECK (true);</pre>`;
+  } else {
+    const rows = dsGS.map(s=>`<tr>
+      <td style="text-align:center;padding:4px 8px">
+        <input class="num-inp" type="number" min="1" value="${s.thu_tu||''}"
+          onchange="GS.capNhat(${s.id},'thu_tu',parseInt(this.value)||1)"></td>
+      <td><input type="text" value="${(s.ten_sheet||'').replace(/"/g,'&quot;')}"
+          style="width:100%;padding:4px 8px;border:1.5px solid var(--g2);border-radius:5px;font-family:var(--font);font-size:13px;outline:none"
+          onfocus="this.style.borderColor='var(--xc)'" onblur="this.style.borderColor='var(--g2)'"
+          onchange="GS.capNhat(${s.id},'ten_sheet',this.value)"></td>
+      <td><input type="text" value="${(s.mo_ta||'').replace(/"/g,'&quot;')}" placeholder="Mô tả ngắn"
+          style="width:100%;padding:4px 8px;border:1.5px solid var(--g2);border-radius:5px;font-family:var(--font);font-size:12px;outline:none"
+          onfocus="this.style.borderColor='var(--xc)'" onblur="this.style.borderColor='var(--g2)'"
+          onchange="GS.capNhat(${s.id},'mo_ta',this.value)"></td>
+      <td><input type="text" value="${(s.embed_url||'').replace(/"/g,'&quot;')}" placeholder="https://docs.google.com/spreadsheets/d/…"
+          style="width:100%;padding:4px 8px;border:1.5px solid var(--g2);border-radius:5px;font-family:var(--mono,monospace);font-size:11px;outline:none"
+          onfocus="this.style.borderColor='var(--xc)'" onblur="this.style.borderColor='var(--g2)'"
+          onchange="GS.capNhat(${s.id},'embed_url',this.value)"></td>
+      <td style="text-align:center;padding:4px 6px">
+        <input class="num-inp" type="number" min="200" max="2000" value="${s.chieu_cao||520}"
+          onchange="GS.capNhat(${s.id},'chieu_cao',parseInt(this.value)||520)"></td>
+      <td style="text-align:center">
+        <label class="sw"><input type="checkbox" ${s.hien_thi?'checked':''}
+          onchange="GS.capNhat(${s.id},'hien_thi',this.checked)"><span class="sw-slider"></span></label></td>
+      <td style="white-space:nowrap">
+        <a href="${s.embed_url}" target="_blank" rel="noopener" class="btn ghost" style="padding:4px 8px;text-decoration:none">🔗</a>
+        <button class="btn danger" style="padding:4px 8px;margin-left:3px" onclick="GS.xoa(${s.id},this.dataset.ten)" data-ten="${(s.ten_sheet||'').replace(/"/g,'&quot;')}">🗑</button></td>
+    </tr>`).join('');
+    body = `<div style="overflow-x:auto"><table class="dt">
+      <thead><tr>
+        <th style="width:60px;text-align:center">Thứ tự</th>
+        <th style="min-width:160px">Tên sheet</th>
+        <th style="min-width:140px">Mô tả</th>
+        <th style="min-width:220px">Link Google Sheet</th>
+        <th style="text-align:center;width:80px">Cao (px)</th>
+        <th style="text-align:center;width:70px">Hiển thị</th>
+        <th style="width:80px"></th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--g4)">Chưa có Google Sheet nào. Nhấn "+ Thêm Sheet" để bắt đầu.</td></tr>'}</tbody>
+    </table></div>
+    <div style="font-size:11px;color:var(--g4);margin-top:8px">💡 Sheet hiển thị sẽ xuất hiện trong nhóm "📈 Dữ liệu Google Sheet" ở trang nhập liệu. Link dạng <code>/edit</code> sẽ tự chuyển sang chế độ nhúng khi hiển thị.</div>`;
+  }
+  return `<div class="card" style="margin-top:12px">
+    <div class="card-head">
+      <h3>📈 Google Sheet nhúng <span style="font-size:12px;font-weight:400;color:var(--g4)">(${dsGS===null?'chưa cài':dsGS.length+' sheet'})</span></h3>
+      ${dsGS===null?'':'<button class="btn primary" onclick="GS.moThem()">+ Thêm Sheet</button>'}
+    </div>
+    ${body}
+  </div>`;
+}
+
+const GS = {
+  moThem(){
+    UTILS.xacNhan('+ Thêm Google Sheet',
+      `<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;text-align:left">
+        <div><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">TÊN SHEET *</label>
+          <input id="gs-ten" type="text" placeholder="VD: Sơ đồ Gantt cụm ngành" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-family:var(--font);font-size:13px;outline:none"></div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">MÔ TẢ</label>
+          <input id="gs-mota" type="text" placeholder="Mô tả ngắn (không bắt buộc)" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-family:var(--font);font-size:13px;outline:none"></div>
+        <div><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">LINK GOOGLE SHEET *</label>
+          <input id="gs-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/…" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-family:monospace;font-size:12px;outline:none"></div>
+        <div style="display:flex;gap:10px">
+          <div style="flex:1"><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">THỨ TỰ</label>
+            <input id="gs-thutu" type="number" min="1" value="${(dsGS?.length||0)+1}" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:13px;outline:none"></div>
+          <div style="flex:1"><label style="font-size:11px;font-weight:700;color:var(--g5);display:block;margin-bottom:4px">CAO (px)</label>
+            <input id="gs-cao" type="number" min="200" max="2000" value="520" style="width:100%;padding:8px 10px;border:1.5px solid var(--g2);border-radius:7px;font-size:13px;outline:none"></div>
+        </div>
+      </div>`,
+      async ()=>{
+        const ten=document.getElementById('gs-ten')?.value.trim();
+        const mota=document.getElementById('gs-mota')?.value.trim();
+        const url=document.getElementById('gs-url')?.value.trim();
+        const thutu=parseInt(document.getElementById('gs-thutu')?.value)||1;
+        const cao=parseInt(document.getElementById('gs-cao')?.value)||520;
+        if(!ten||!url){ toast('Vui lòng nhập Tên sheet và Link!','er'); return; }
+        if(!url.includes('docs.google.com/spreadsheets')){ toast('Link phải là Google Sheets.','er'); return; }
+        try{
+          await DB.themGSheet({ten_sheet:ten, mo_ta:mota||null, embed_url:url, thu_tu:thutu, chieu_cao:cao, hien_thi:true});
+          toast('✅ Đã thêm Google Sheet!');
+          await hienQuanLyBang();
+        }catch(e){ toast('Lỗi: '+e.message,'er'); }
+      });
+  },
+  async capNhat(id, col, val){
+    const u={}; u[col]=val;
+    try{ await DB.suaGSheet(id,u); toast('✅ Đã lưu!'); }
+    catch(e){ toast('Lỗi: '+e.message,'er'); }
+  },
+  xoa(id, ten){
+    UTILS.xacNhan('Xoá Google Sheet', `Xoá "<strong>${ten}</strong>" khỏi danh sách?`, async ()=>{
+      try{ await DB.xoaGSheet(id); toast('✅ Đã xoá!'); await hienQuanLyBang(); }
+      catch(e){ toast('Lỗi: '+e.message,'er'); }
+    });
+  },
+};
 
 function renderQuanLyBang() {
   document.getElementById('content').innerHTML = `

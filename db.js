@@ -22,7 +22,7 @@ const DB = {
     const { data, error } = await sb
       .from(CONFIG.BANG.TAI_KHOAN)
       .select('*')
-      .neq('an_khoi_admin', true) // ẩn tài khoản có an_khoi_admin = true
+      .neq('an_khoi_admin', true)
       .order('vai_tro').order('don_vi');
     if (error) throw error;
     return data || [];
@@ -131,6 +131,62 @@ const DB = {
     if (error) throw error;
   },
 
+  // ── CỘT SO SÁNH (cau_hinh_so_sanh) ─────────────────────
+  // Cột so sánh trong bảng nhập liệu = Kỳ A (ky_tu) ÷ Kỳ B (ky_mau) × 100%
+  async laySoSanh(chiHienThi = false) {
+    if (!CONFIG.BANG.SO_SANH) return [];
+    let q = sb.from(CONFIG.BANG.SO_SANH).select('*')
+      .order('thu_tu', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true });
+    if (chiHienThi) q = q.eq('hien_thi', true);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async themSoSanh(row) {
+    const { error } = await sb.from(CONFIG.BANG.SO_SANH).insert(row);
+    if (error) throw error;
+  },
+
+  async suaSoSanh(id, row) {
+    const { error } = await sb.from(CONFIG.BANG.SO_SANH).update(row).eq('id', id);
+    if (error) throw error;
+  },
+
+  async xoaSoSanh(id) {
+    const { error } = await sb.from(CONFIG.BANG.SO_SANH).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // ── CÔNG THỨC CHỈ TIÊU TỔNG (cong_thuc_chi_tieu) ───────
+  // Ô có công thức bị khóa nhập tay; giá trị do CT (congthuc.js) tính.
+  // Nếu chưa chạy sql_cong_thuc_chi_tieu.sql thì trả về [] để ứng dụng
+  // vẫn chạy bình thường như khi không có tính năng này.
+  async layCongThuc(maBang = null) {
+    if (!CONFIG.BANG.CONG_THUC) return [];
+    let q = sb.from(CONFIG.BANG.CONG_THUC).select('*').order('id_chi_tieu');
+    if (maBang) q = q.eq('bang', maBang);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async themCongThuc(row) {
+    const { error } = await sb.from(CONFIG.BANG.CONG_THUC).insert(row);
+    if (error) throw error;
+  },
+
+  async suaCongThuc(id, row) {
+    const { error } = await sb.from(CONFIG.BANG.CONG_THUC).update(row).eq('id', id);
+    if (error) throw error;
+  },
+
+  async xoaCongThuc(id) {
+    const { error } = await sb.from(CONFIG.BANG.CONG_THUC).delete().eq('id', id);
+    if (error) throw error;
+  },
+
   // ── CHỈ TIÊU ───────────────────────────────────────────
   async layChiTieuTheoBang(maBang) {
     const { data, error } = await sb
@@ -188,9 +244,48 @@ const DB = {
   },
 
   async luuDuLieu(maBang, rows) {
-    const { error } = await sb
-      .from(this._tenBangCSDL(maBang))
-      .upsert(rows, { onConflict: 'id_chi_tieu,ky_bao_cao' });
+    if (!rows || !rows.length) return;
+    // PostgREST lấy danh sách cột từ các object trong payload; nếu các object
+    // có bộ khóa KHÁC nhau (dòng chỉ sửa ghi chú vs dòng chỉ sửa giá trị) thì
+    // hoặc báo lỗi, hoặc ghi đè cột thiếu thành null — mất số liệu đã có.
+    // → Gom theo "chữ ký" khóa rồi upsert từng nhóm.
+    const nhom = {};
+    rows.forEach(r => {
+      const k = Object.keys(r).sort().join(',');
+      (nhom[k] = nhom[k] || []).push(r);
+    });
+    for (const k of Object.keys(nhom)) {
+      const { error } = await sb
+        .from(this._tenBangCSDL(maBang))
+        .upsert(nhom[k], { onConflict: 'id_chi_tieu,ky_bao_cao' });
+      if (error) throw error;
+    }
+  },
+
+  // ── GOOGLE SHEET (danh_sach_gsheet) ────────────────────
+  // Lưu ý: dùng biến `sb` cục bộ (bản cũ gọi DB.sb — không tồn tại — nên luôn lỗi)
+  async layGSheet(chiHienThi = true) {
+    if (!CONFIG.BANG.GSHEET) return [];
+    let q = sb.from(CONFIG.BANG.GSHEET).select('*')
+      .order('thu_tu', { ascending: true });
+    if (chiHienThi) q = q.eq('hien_thi', true);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async themGSheet(row) {
+    const { error } = await sb.from(CONFIG.BANG.GSHEET).insert(row);
+    if (error) throw error;
+  },
+
+  async suaGSheet(id, row) {
+    const { error } = await sb.from(CONFIG.BANG.GSHEET).update(row).eq('id', id);
+    if (error) throw error;
+  },
+
+  async xoaGSheet(id) {
+    const { error } = await sb.from(CONFIG.BANG.GSHEET).delete().eq('id', id);
     if (error) throw error;
   },
 

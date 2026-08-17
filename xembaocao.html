@@ -10,6 +10,7 @@
 <script src="config.js"></script>
 <script src="db.js"></script>
 <script src="utils.js"></script>
+<script src="congthuc.js"></script>
 <style>
 :root{--xd:#1b4332;--xc:#2d6a4f;--xn:#52b788;--xp:#d8f3dc;--w:#fff;--g1:#f4f6f5;--g2:#e4e9e6;--g3:#c5d0c9;--g4:#7a9485;--g5:#3d5247;--dk:#1a2e22;--red:#c0392b;--blue:#2563eb;--sw:230px;--font:'Be Vietnam Pro',sans-serif;--mono:'JetBrains Mono',monospace;--r:7px;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -132,6 +133,9 @@ table.t td.td-u{text-align:center;font-size:11px;color:var(--g4)}
 table.t td.td-val{text-align:right;font-family:var(--mono);font-size:13px;color:var(--xd);white-space:nowrap}
 table.t td.td-val.no-val{color:var(--g3)}
 table.t td.td-cmp{text-align:right;font-family:var(--mono);font-size:13px;font-weight:600;background:#f5f8ff}
+table.t td.td-val.td-ctf{background:#eef6f0;font-weight:700;color:var(--xd);cursor:help}
+table.t td.td-val.td-ctf.lech{background:#fff7e6}
+.ct-badge{display:inline-block;margin-right:5px;font-size:9px;font-weight:700;color:#fff;background:var(--xc);border-radius:3px;padding:1px 4px;vertical-align:middle;cursor:help;line-height:1.4}
 table.t td.td-cmp.up{color:#15803d}table.t td.td-cmp.down{color:var(--red)}table.t td.td-cmp.na{color:var(--g3);font-weight:400}
 table.t tr.tr-h td{background:var(--xp);font-weight:700;color:var(--xd);font-size:12px}
 table.t tr.tr-h td.td-n{background:var(--xp)}
@@ -160,20 +164,49 @@ table.t tr:not(.tr-h):hover td{background:#f0fdf4}table.t tr:not(.tr-h):hover td
 .toast{position:fixed;top:58px;right:14px;padding:10px 16px;border-radius:var(--r);font-size:13px;color:white;box-shadow:0 2px 10px rgba(0,0,0,.15);transform:translateX(110%);transition:.3s;z-index:200}
 .toast.on{transform:translateX(0)}.toast.ok{background:#1b5e20}.toast.er{background:var(--red)}
 
+/* ── Mobile: sidebar off-canvas + overlay ── */
+.hamburger{display:none;background:var(--xp);border:none;color:var(--xd);font-size:20px;cursor:pointer;padding:5px 12px;margin-right:6px;border-radius:8px}
+.only-m{display:none}
+@media(min-width:769px){.sb-overlay{display:none!important}}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:95}
+.sb-overlay.on{display:block}
 @media(max-width:768px){
   body{overflow:auto;height:auto}
-  #app{flex-direction:column;height:auto}
-  .sb{width:100%;flex-direction:row;flex-wrap:wrap;padding:6px}
-  .sb-head,.sb-foot{width:100%}
-  .sb-nav{max-height:170px}
-  .tw{max-height:none}
+  #app{height:auto;min-height:100vh}
+  .sb{position:fixed;top:0;left:0;height:100%;width:min(var(--sw),84vw);z-index:100;
+      transform:translateX(-105%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+      box-shadow:4px 0 20px rgba(0,0,0,.25)}
+  .sb.open{transform:translateX(0)}
+  .hamburger{display:flex;align-items:center;justify-content:center}
+  .only-m{display:inline-flex!important}
+  .only-d{display:none!important}
+  .main{width:100%;overflow:visible}
+  .topbar{position:sticky;top:0;z-index:90;padding:0 10px}
+  .topbar-t{font-size:13px}
+  .content{overflow:visible;padding:8px}
+  .tw{max-height:none;-webkit-overflow-scrolling:touch}
   table.t th.th-n,table.t td.td-n{position:static}
+  /* Điều khiển co giãn cho ngón tay */
+  .qs-bar{padding:10px 12px}
+  .qs-bar .sel{padding:9px 10px;font-size:14px}
+  .sel{padding:9px 10px}
+  .btn-add,.btn-sm{padding:9px 14px}
+  .ky-box{max-width:none}
+  .ky-r .c-name{padding:10px 12px}
+  .cmp-form{gap:6px}
+  .cmp-form .sel{flex:1;min-width:120px}
+  .btn-view{max-width:none}
+  .welcome{min-height:auto;padding:20px 10px}
+  .welcome-card{padding:26px 20px}
+  .welcome-card h2{font-size:18px}
+  .toast{left:8px;right:8px;top:54px}
 }
 </style>
 </head>
 <body>
+<div id="sb-overlay" class="sb-overlay" onclick="XEM.closeSidebar()"></div>
 <div id="app">
-  <aside class="sb">
+  <aside class="sb" id="sb">
     <div class="sb-head">
       <div class="sb-logo"><span class="i">📊</span>
         <div class="t">Xem báo cáo<br><span style="opacity:.55;font-weight:400">Sở NN và MT</span></div>
@@ -188,6 +221,7 @@ table.t tr:not(.tr-h):hover td{background:#f0fdf4}table.t tr:not(.tr-h):hover td
 
   <main class="main">
     <div class="topbar">
+      <button class="hamburger" onclick="XEM.toggleSidebar()">☰</button>
       <div class="topbar-t" id="topbar-t">Chọn bảng báo cáo bên trái để xem</div>
       <div id="topbar-actions" style="display:flex;align-items:center;gap:6px;flex-shrink:0"></div>
     </div>
@@ -198,7 +232,8 @@ table.t tr:not(.tr-h):hover td{background:#f0fdf4}table.t tr:not(.tr-h):hover td
           <div class="welcome-ico">📊</div>
           <h2>Chọn một bảng báo cáo để bắt đầu</h2>
           <p>Danh sách các bảng bạn được phép xem nằm ở thanh bên trái.<br>Bấm vào một bảng để chọn kỳ và so sánh số liệu.</p>
-          <div class="welcome-hint">👈 Chọn bảng ở thanh bên trái</div>
+          <div class="welcome-hint only-d">👈 Chọn bảng ở thanh bên trái</div>
+          <button class="welcome-hint only-m" style="border:none;cursor:pointer;font-family:var(--font)" onclick="XEM.toggleSidebar()">📋 Bấm để mở danh sách bảng</button>
         </div>
       </div>
     </div>
@@ -213,6 +248,7 @@ const XEM = {
   checkedKy:new Set(),             // các kỳ đang tick trong danh sách (chưa thêm)
   selectedKy:[], comparisons:[],   // đã thêm vào biểu; comparisons = [{tu, mau}]
   wOverride:{},                    // độ rộng cột kéo tay — CHỈ lưu trong phiên, không ghi SQL
+  ctPrep:null, ctById:{}, apCT:true, ctLech:0,   // công thức chỉ tiêu tổng (congthuc.js)
   _resizing:null,
 
   async init(){
@@ -308,7 +344,28 @@ const XEM = {
       this.dsBang.map(b=>`<div class="ni" id="nx-${b.bang}" onclick="XEM.chonBang('${b.bang}')"><span class="i">📄</span><span>${b.ten_bang}</span></div>`).join('');
   },
 
+  toggleSidebar(){
+    UTILS.el('sb')?.classList.toggle('open');
+    UTILS.el('sb-overlay')?.classList.toggle('on');
+  },
+
+  // Chuyển mọi dạng link Google Sheet → dạng nhúng được (giữ nguyên nếu đã là dạng nhúng)
+  _gsEmbed(url){
+    if(!url)return'';
+    url=String(url).trim();
+    if(/\/pubhtml|output=html|\/htmlview|\/preview/.test(url)) return url;
+    const gid=(url.match(/[#?&]gid=(\d+)/)||[])[1];
+    const m=url.match(/\/spreadsheets\/d\/(e\/)?([\w-]+)/);
+    if(m) return `https://docs.google.com/spreadsheets/d/${m[1]||''}${m[2]}/htmlview${gid?`?gid=${gid}#gid=${gid}`:''}`;
+    return url;
+  },
+  closeSidebar(){
+    UTILS.el('sb')?.classList.remove('open');
+    UTILS.el('sb-overlay')?.classList.remove('on');
+  },
+
   async chonBang(maBang){
+    this.closeSidebar();
     this.bangHT = maBang;
     document.querySelectorAll('.ni').forEach(e=>e.classList.remove('act'));
     UTILS.el('nx-'+maBang)?.classList.add('act');
@@ -321,14 +378,18 @@ const XEM = {
     if(b?.gsheet_url){
       UTILS.el('content').innerHTML = `
         <div class="empty" style="padding:24px"><span class="i">📈</span>
-          <span>Bảng này hiển thị bằng Google Sheet, không có số liệu trong cơ sở dữ liệu để so sánh.</span></div>
-        <div class="gs-wrap"><iframe src="${b.gsheet_url.trim()}" allowfullscreen></iframe></div>`;
+          <span>Bảng này hiển thị bằng Google Sheet, không có số liệu trong cơ sở dữ liệu để so sánh.</span>
+          <a href="${b.gsheet_url.trim()}" target="_blank" rel="noopener" style="font-size:12px;color:var(--xc);font-weight:600">🔗 Mở trong Google Sheet</a></div>
+        <div class="gs-wrap"><iframe src="${this._gsEmbed(b.gsheet_url)}" allowfullscreen loading="lazy"></iframe></div>`;
       return;
     }
 
     UTILS.el('content').innerHTML = `<div class="loading"><span class="spin"></span> Đang tải chỉ tiêu...</div>`;
     try{
       this.ct = await DB.layChiTieuTheoBang(maBang);
+      this.ctById = {}; this.ct.forEach(c=>{ this.ctById[c.id] = c; });
+      this.ctPrep = await CT.nap(maBang, this.ct);
+      if(this.ctPrep.loi.length) console.warn('[Công thức] '+this.ctPrep.loi.join(' | '));
     }catch(e){
       UTILS.el('content').innerHTML = `<div class="empty"><span class="i">⚠️</span><span>Lỗi: ${e.message}</span></div>`;
       return;
@@ -387,6 +448,15 @@ const XEM = {
       <div class="sec">
         <div class="sec-title"><span class="num">3</span> Các cột sẽ hiển thị trong biểu</div>
         <div class="chip-strip" id="chip-strip"></div>
+      </div>
+
+      <div class="sec" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--xd)">
+          <input type="checkbox" id="chk-ct" ${this.apCT?'checked':''} onchange="XEM.doiApCT(this.checked)" style="width:16px;height:16px;cursor:pointer">
+          &Sigma; Áp dụng công thức chỉ tiêu tổng
+        </label>
+        <span style="font-size:11.5px;color:var(--g4)">Cộng lại từ các dòng thành phần khi hiển thị. Bỏ tick để xem đúng số đang lưu trong CSDL.</span>
+        <span id="ct-lech" style="font-size:11.5px;color:#b45309;font-weight:600"></span>
       </div>
 
       <div class="view-bar">
@@ -557,6 +627,15 @@ const XEM = {
     return k ? (k.ky_bao_cao_tieu_de||code) : code;
   },
 
+  // ── Chỉ tiêu tổng (công thức) ──
+  doiApCT(v){ this.apCT = !!v; if(this.daXem) this.taiDuLieu(); },
+  _moTaCT(id){
+    return CT.moTa(this.ctPrep, id, ma=>{
+      const c = this.ctById[ma];
+      return c ? c.chi_tieu.trim().substring(0,42) : '(không có mã này)';
+    }).replace('🔒 Ô tự động — không nhập tay', 'Σ Chỉ tiêu tổng — tự cộng từ các dòng thành phần');
+  },
+
   // Nút "Xem biểu"
   async xemBieu(){
     if(!this.selectedKy.length && !this.comparisons.length){
@@ -583,7 +662,15 @@ const XEM = {
       const dl = await DB.layDuLieu(this.bangHT, canDung);
       this.idx = {};
       dl.forEach(r=>{ this.idx[`${r.id_chi_tieu}|${r.ky_bao_cao}`] = r; });
+      // ── Áp công thức chỉ tiêu tổng: cộng lại từ các dòng thành phần ──
+      this.ctLech = 0;
+      if(this.apCT && this.ctPrep){
+        const dsKyObj = canDung.map(code=>Object.assign({ky_bao_cao:code}, this._kyObj(code)));
+        this.ctLech = CT.apDungVaoIdx(this.idx, this.ctPrep, dsKyObj).soOLech;
+      }
       this.renderBang();
+      const el = UTILS.el('ct-lech');
+      if(el) el.textContent = this.ctLech ? `⚠ ${this.ctLech} ô lệch so với số trong CSDL` : '';
     }catch(e){
       tw.innerHTML = `<div class="empty"><span class="i">⚠️</span><span>Lỗi tải số liệu: ${e.message}</span></div>`;
     }
@@ -604,8 +691,8 @@ const XEM = {
     this._resizing = { col, tbl, key, startX:e.clientX,
       startW:parseInt(col.style.width)||100, startTW:parseInt(tbl.style.width)||tbl.offsetWidth };
     document.body.classList.add('resizing');
-    document.addEventListener('mousemove', this._onResize);
-    document.addEventListener('mouseup', this._endResize);
+    document.addEventListener('pointermove', this._onResize);
+    document.addEventListener('pointerup', this._endResize);
   },
   _onResize(e){
     const r = XEM._resizing; if(!r) return;
@@ -616,8 +703,8 @@ const XEM = {
   },
   _endResize(e){
     const r = XEM._resizing; if(!r) return;
-    document.removeEventListener('mousemove', XEM._onResize);
-    document.removeEventListener('mouseup', XEM._endResize);
+    document.removeEventListener('pointermove', XEM._onResize);
+    document.removeEventListener('pointerup', XEM._endResize);
     document.body.classList.remove('resizing');
     const w = Math.max(56, r.startW + e.clientX - r.startX);
     XEM.wOverride[r.key] = w;
@@ -626,7 +713,7 @@ const XEM = {
     XEM._resizing = null;
   },
 
-  _rsz(key){ return `<div class="resize-handle" onmousedown="XEM.startResize(event,'${key}')" title="Kéo để đổi độ rộng cột"></div>`; },
+  _rsz(key){ return `<div class="resize-handle" onpointerdown="XEM.startResize(event,'${key}')" title="Kéo để đổi độ rộng cột"></div>`; },
 
   renderBang(){
     if(!this.ct.length){
@@ -685,18 +772,30 @@ const XEM = {
         return;
       }
 
+      const coCT = !!(this.ctPrep && this.ctPrep.map[c.id]);
       let cells = '';
       this.selectedKy.forEach(code=>{
-        const v = this.idx[`${c.id}|${code}`]?.gia_tri;
+        const r = this.idx[`${c.id}|${code}`];
+        const v = r?.gia_tri;
         const has = v!==null&&v!==undefined&&v!=='';
         const disp = has ? (isText ? v : UTILS.formatSo(v)) : '–';
-        cells += `<td class="td-val ${has?'':'no-val'}" style="${isText?'text-align:left':''}">${disp}</td>`;
+        if(r && r._ct){
+          const cu = r._ctCu;
+          const lech = (cu===null&&v!==null)||(cu!==null&&v===null)||(cu!==null&&v!==null&&Math.abs(cu-Number(v))>1e-6);
+          let tip = this._moTaCT(c.id);
+          if((r._ctThieu||[]).length) tip += `\n⚠ Chưa có số liệu: ${r._ctThieu.join(', ')}`;
+          if(lech) tip += `\n⚠ Số đang lưu trong CSDL: ${cu===null?'(trống)':UTILS.formatSo(cu)}`;
+          cells += `<td class="td-val td-ctf ${has?'':'no-val'} ${lech?'lech':''}" title="${tip.replace(/"/g,'&quot;')}">${disp}</td>`;
+        }else{
+          cells += `<td class="td-val ${has?'':'no-val'}" style="${isText?'text-align:left':''}">${disp}</td>`;
+        }
       });
       this.comparisons.forEach(cp=>{
         cells += this._oSoSanh(c, cp, isText);
       });
+      const bdgCT = coCT ? `<span class="ct-badge" title="${this._moTaCT(c.id).replace(/"/g,'&quot;')}">&Sigma;</span>` : '';
       tb += `<tr><td class="td-stt">${stt}</td>
-        <td class="td-n" style="padding-left:${ind+10}px">${c.chi_tieu.trim()}</td>
+        <td class="td-n" style="padding-left:${ind+10}px">${bdgCT}${c.chi_tieu.trim()}</td>
         <td class="td-u">${c.don_vi||''}</td>${cells}</tr>`;
     });
 

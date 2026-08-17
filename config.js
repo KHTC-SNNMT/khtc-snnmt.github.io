@@ -22,6 +22,9 @@ const CONFIG = {
     KY_BAO_CAO:      'ky_bao_cao',
     TAI_KHOAN:       'tai_khoan',
     PHAN_QUYEN_BANG: 'phan_quyen_bang',
+    SO_SANH:         'cau_hinh_so_sanh',   // cấu hình cột so sánh (Kỳ A ÷ Kỳ B × 100%)
+    CONG_THUC:       'cong_thuc_chi_tieu',  // công thức chỉ tiêu tổng (chạy sql_cong_thuc_chi_tieu.sql)
+    GSHEET:          'danh_sach_gsheet',    // danh sách Google Sheet nhúng
     CSDL_PREFIX:     'csdl_',   // + maBang.toLowerCase() → csdl_bang_01, csdl_bang_02...
   },
 };
